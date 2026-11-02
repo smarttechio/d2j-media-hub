@@ -333,6 +333,83 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (action === 'delete_opportunity') {
+      if (!canPublishContent(session.role, session.permissions)) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions to delete opportunities.' },
+          { status: 403 }
+        );
+      }
+      const target = db.opportunities.find((o) => o.id === payload.id);
+      db.opportunities = db.opportunities.filter((o) => o.id !== payload.id);
+      if (target) {
+        appendActivityLog(db, session, {
+          action: 'Deleted Opportunity',
+          targetType: 'opportunity',
+          targetId: target.id,
+          targetTitle: target.title,
+          statusChange: `${target.workflowStatus} → Deleted`,
+        });
+      }
+      writeDb(db);
+      return NextResponse.json({
+        ok: true,
+        opportunities: db.opportunities,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    if (action === 'delete_scholar_qa') {
+      if (!canPublishContent(session.role, session.permissions)) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions to delete Q&A items.' },
+          { status: 403 }
+        );
+      }
+      const target = db.scholarQuestions.find((q) => q.id === payload.id);
+      db.scholarQuestions = db.scholarQuestions.filter((q) => q.id !== payload.id);
+      if (target) {
+        appendActivityLog(db, session, {
+          action: 'Deleted Scholar Q&A',
+          targetType: 'scholar_qa',
+          targetId: target.id,
+          targetTitle: target.subject,
+          statusChange: `${target.status} → Deleted`,
+        });
+      }
+      writeDb(db);
+      return NextResponse.json({
+        ok: true,
+        scholarQuestions: db.scholarQuestions,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    if (action === 'delete_media') {
+      if (!canPublishContent(session.role, session.permissions)) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions to delete media.' },
+          { status: 403 }
+        );
+      }
+      const target = db.media.find((m) => m.id === payload.id);
+      db.media = db.media.filter((m) => m.id !== payload.id);
+      if (target) {
+        appendActivityLog(db, session, {
+          action: 'Deleted Media Asset',
+          targetType: 'media',
+          targetId: target.id,
+          targetTitle: target.filename,
+        });
+      }
+      writeDb(db);
+      return NextResponse.json({
+        ok: true,
+        media: db.media,
+        activityLogs: db.activityLogs,
+      });
+    }
+
     // 4. CREATE OR UPDATE OPPORTUNITY
     if (action === 'save_opportunity') {
       if (!canPublishContent(session.role, session.permissions)) {

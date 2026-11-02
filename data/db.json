@@ -15,14 +15,16 @@
       "authorId": "usr-admin",
       "authorName": "D2J Super Administrator",
       "publishedAt": "2026-10-28",
-      "updatedAt": "2026-10-28",
+      "updatedAt": "2026-10-31",
       "artTheme": "campus",
       "featuredImage": "/uploads/1793220522263-sisters-awareness-program-poster-1.png",
       "featuredVideo": "/uploads/1793220507704-whatsapp-video-2026-10-21-at-3-52-02-pm.mp4",
       "imageCaption": "Editorial illustration — D2J Media Hub.",
       "verification": "V",
-      "status": "Published",
-      "views": 1
+      "status": "Draft",
+      "views": 1,
+      "lastEditedBy": "D2J Super Administrator",
+      "lastEditedById": "usr-admin"
     },
     {
       "id": "art-1793219402664",
@@ -840,7 +842,7 @@
       "allowedCategories": [
         "ALL"
       ],
-      "lastLoginAt": "2026-10-30T09:19:03.656Z"
+      "lastLoginAt": "2026-10-31T10:31:56.508Z"
     },
     {
       "id": "usr-editor",
@@ -924,6 +926,21 @@
     }
   },
   "activityLogs": [
+    {
+      "id": "log-1793442941734-tyri",
+      "actorId": "usr-admin",
+      "actorName": "D2J Super Administrator",
+      "actorEmail": "admin@d2jmediahub.local",
+      "actorRole": "SUPER_ADMIN",
+      "createdAt": "2026-10-31T10:35:41.734Z",
+      "superAdminReviewStatus": "Approved",
+      "action": "Changed Article Status to Draft",
+      "targetType": "article",
+      "targetId": "art-1793220547855",
+      "targetTitle": "jkhdsnmxdg",
+      "statusChange": "Published → Draft",
+      "details": "Category: lifestyle"
+    },
     {
       "id": "log-seed-1",
       "actorId": "usr-admin",

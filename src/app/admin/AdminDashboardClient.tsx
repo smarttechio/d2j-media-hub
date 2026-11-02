@@ -215,11 +215,18 @@ export function AdminDashboardClient({
   const [newUserRole, setNewUserRole] = useState<UserRole>("ADMINISTRATOR");
   const [newUserTitle, setNewUserTitle] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
+  const [showUserPassword, setShowUserPassword] = useState(false);
   const [newUserActive, setNewUserActive] = useState<boolean>(true);
   const [newUserPermissions, setNewUserPermissions] = useState<DashboardPermission[]>(
     getDefaultPermissionsForRole("ADMINISTRATOR")
   );
   const [newUserCategories, setNewUserCategories] = useState<string[]>(["ALL"]);
+  const [lastSavedCredentials, setLastSavedCredentials] = useState<{
+    name: string;
+    email: string;
+    password?: string;
+    role: UserRole;
+  } | null>(null);
 
   // Admin Review & Oversight Filter State
   const [selectedAdminToReview, setSelectedAdminToReview] = useState<string>("ALL");
@@ -367,6 +374,25 @@ export function AdminDashboardClient({
       const data = await apiAction("update_article_status", { id, status });
       setArticles(data.articles);
       notify(`Article moved to "${status}".`);
+    } catch {
+      // handled
+    }
+  }
+
+  async function handleDeleteArticle(id: string, title: string) {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Are you sure you want to permanently delete "${title}"?`)
+    ) {
+      return;
+    }
+    try {
+      const data = await apiAction("delete_article", { id });
+      setArticles(data.articles);
+      if (editingArticle?.id === id) {
+        setEditingArticle(null);
+      }
+      notify(`Deleted article: "${title}".`);
     } catch {
       // handled
     }
@@ -1276,9 +1302,26 @@ export function AdminDashboardClient({
                     </div>
                   </div>
 
-                  <button type="submit" className="btn btn-primary">
-                    Save Article
-                  </button>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    <button type="submit" className="btn btn-primary">
+                      Save Article
+                    </button>
+                    {canPublish && editingArticle.id && (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        style={{ color: "#991B1B", borderColor: "#FCA5A5" }}
+                        onClick={() =>
+                          handleDeleteArticle(
+                            editingArticle.id!,
+                            editingArticle.title || "this article"
+                          )
+                        }
+                      >
+                        🗑 Delete Article
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             )}
@@ -1397,6 +1440,23 @@ export function AdminDashboardClient({
                               onClick={() => handleArticleStatus(art.id, "Draft")}
                             >
                               Unpublish to Draft
+                            </button>
+                          )}
+                          {canPublish && (
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{
+                                fontSize: 11.5,
+                                padding: "4px 8px",
+                                color: "#991B1B",
+                                borderColor: "#FCA5A5",
+                                background: "#FEF2F2",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => handleDeleteArticle(art.id, art.title)}
+                            >
+                              Delete
                             </button>
                           )}
                         </div>
@@ -1696,14 +1756,41 @@ export function AdminDashboardClient({
                     Verified: {o.lastVerified} · <a href={o.officialUrl} target="_blank" rel="noreferrer">Official Source ↗</a>
                   </div>
                   {canPublish && (
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      style={{ padding: "5px 12px", fontSize: 12 }}
-                      onClick={() => setEditingOpp(o)}
-                    >
-                      Edit / Change Status
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        style={{ padding: "5px 12px", fontSize: 12 }}
+                        onClick={() => setEditingOpp(o)}
+                      >
+                        Edit / Change Status
+                      </button>
+                      <button
+                        type="button"
+                        className="chip"
+                        style={{
+                          padding: "5px 10px",
+                          fontSize: 12,
+                          color: "#991B1B",
+                          borderColor: "#FCA5A5",
+                          background: "#FEF2F2",
+                          cursor: "pointer",
+                        }}
+                        onClick={async () => {
+                          if (
+                            typeof window !== "undefined" &&
+                            !window.confirm(`Delete opportunity "${o.title}"?`)
+                          ) {
+                            return;
+                          }
+                          const data = await apiAction("delete_opportunity", { id: o.id });
+                          setOpportunities(data.opportunities);
+                          notify(`Deleted opportunity "${o.title}".`);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1819,14 +1906,43 @@ export function AdminDashboardClient({
                       Submitted: {q.submittedAt.slice(0, 10)} · Reviewer: {q.scholarReviewerName || "Unassigned"}
                     </div>
                     {canScholar && (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        style={{ padding: "6px 12px", fontSize: 12.5 }}
-                        onClick={() => openQAReview(q)}
-                      >
-                        Screen / Review Question
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ padding: "6px 12px", fontSize: 12.5 }}
+                          onClick={() => openQAReview(q)}
+                        >
+                          Screen / Review Question
+                        </button>
+                        {canPublish && (
+                          <button
+                            type="button"
+                            className="chip"
+                            style={{
+                              padding: "6px 10px",
+                              fontSize: 12,
+                              color: "#991B1B",
+                              borderColor: "#FCA5A5",
+                              background: "#FEF2F2",
+                              cursor: "pointer",
+                            }}
+                            onClick={async () => {
+                              if (
+                                typeof window !== "undefined" &&
+                                !window.confirm(`Delete Q&A "${q.subject}"?`)
+                              ) {
+                                return;
+                              }
+                              const data = await apiAction("delete_scholar_qa", { id: q.id });
+                              setScholarQuestions(data.scholarQuestions);
+                              notify(`Deleted Q&A "${q.subject}".`);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -2391,9 +2507,73 @@ export function AdminDashboardClient({
                   )}
                 </div>
 
+                {lastSavedCredentials && (
+                  <div
+                    className="card"
+                    style={{
+                      padding: 16,
+                      marginBottom: 16,
+                      background: "#E8F3EC",
+                      border: "1px solid var(--green)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <strong style={{ color: "var(--green)", fontSize: 14 }}>
+                        ✓ Login Details Ready to Share ({lastSavedCredentials.name})
+                      </strong>
+                      <button
+                        type="button"
+                        className="chip"
+                        style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}
+                        onClick={() => setLastSavedCredentials(null)}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--ink)", marginBottom: 10 }}>
+                      <div>
+                        <strong>Login Page:</strong>{" "}
+                        <code>
+                          {typeof window !== "undefined" ? `${window.location.origin}/admin/login` : "/admin/login"}
+                        </code>
+                      </div>
+                      <div>
+                        <strong>Email:</strong> <code>{lastSavedCredentials.email}</code>
+                      </div>
+                      <div>
+                        <strong>Password:</strong>{" "}
+                        <code>{lastSavedCredentials.password || "(Unchanged — existing password)"}</code>
+                      </div>
+                      <div>
+                        <strong>Role:</strong> <code>{lastSavedCredentials.role}</code>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: "5px 12px", fontSize: 12 }}
+                      onClick={() => {
+                        const loginUrl =
+                          typeof window !== "undefined"
+                            ? `${window.location.origin}/admin/login`
+                            : "/admin/login";
+                        const text = `D2J Media Hub Staff Login\nLogin URL: ${loginUrl}\nEmail: ${lastSavedCredentials.email}\nPassword: ${lastSavedCredentials.password || "(your existing password)"}\nRole: ${lastSavedCredentials.role}`;
+                        navigator.clipboard?.writeText(text);
+                        notify("Copied login details to clipboard!");
+                      }}
+                    >
+                      📋 Copy Login Details to Send to Staff
+                    </button>
+                  </div>
+                )}
+
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
+                    const savedName = newUserName;
+                    const savedEmail = newUserEmail;
+                    const savedPass = newUserPassword;
+                    const savedRole = newUserRole;
                     const data = await apiAction("save_user", {
                       id: editingUserId || undefined,
                       name: newUserName,
@@ -2407,6 +2587,12 @@ export function AdminDashboardClient({
                     });
                     setUsers(data.users);
                     const wasEditing = Boolean(editingUserId);
+                    setLastSavedCredentials({
+                      name: savedName,
+                      email: savedEmail,
+                      password: savedPass || undefined,
+                      role: savedRole,
+                    });
                     setEditingUserId(null);
                     setNewUserName("");
                     setNewUserEmail("");
@@ -2629,13 +2815,29 @@ export function AdminDashboardClient({
 
                   <div className="grid-2">
                     <div className="f-row">
-                      <label>
-                        {editingUserId
-                          ? "New Password (leave blank to keep current)"
-                          : "Initial Password (min 8 characters) *"}
-                      </label>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <label style={{ margin: 0 }}>
+                          {editingUserId
+                            ? "New Password (leave blank to keep current)"
+                            : "Create Password for This Person (min 8 chars) *"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowUserPassword(!showUserPassword)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--green)",
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {showUserPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
                       <input
-                        type="password"
+                        type={showUserPassword ? "text" : "password"}
                         required={!editingUserId}
                         minLength={8}
                         placeholder={editingUserId ? "Leave blank to keep unchanged" : "Min 8 characters"}

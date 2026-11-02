@@ -1007,11 +1007,26 @@ export function readDb(): DatabaseSchema {
 
     // Ensure seamless migration for Super Admin, permissions, and activity logs
     if (Array.isArray(parsed.users)) {
+      const defaultAdminHash = hashPassword("D2J_Admin_Secure_2026!");
       parsed.users = parsed.users.map((u) => {
         const isSuper = Boolean(u.isSuperAdmin || u.id === "usr-admin" || u.role === "SUPER_ADMIN");
         const effectiveRole: UserRole = isSuper && u.id === "usr-admin" ? "SUPER_ADMIN" : u.role;
+        const updatedEmail =
+          u.id === "usr-admin" &&
+          u.email === "admin@d2jmediahub.local" &&
+          process.env.D2J_ADMIN_EMAIL
+            ? process.env.D2J_ADMIN_EMAIL.toLowerCase().trim()
+            : u.email;
+        const updatedHash =
+          u.id === "usr-admin" &&
+          u.passwordHash === defaultAdminHash &&
+          process.env.D2J_ADMIN_PASSWORD
+            ? hashPassword(process.env.D2J_ADMIN_PASSWORD)
+            : u.passwordHash;
         return {
           ...u,
+          email: updatedEmail,
+          passwordHash: updatedHash,
           role: effectiveRole,
           isSuperAdmin: isSuper,
           permissions:
