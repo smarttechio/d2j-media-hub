@@ -191,6 +191,8 @@ export function AdminDashboardClient({
   const [draggedBlockIdx, setDraggedBlockIdx] = useState<number | null>(null);
   const [previewArticle, setPreviewArticle] = useState<Partial<Article> | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState<boolean>(false);
+  const [savingArticle, setSavingArticle] = useState<boolean>(false);
+  const [editorError, setEditorError] = useState<string>("");
 
   // Opportunity editor state
   const [editingOpp, setEditingOpp] = useState<Partial<Opportunity> | null>(null);
@@ -279,8 +281,23 @@ export function AdminDashboardClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, payload }),
     });
-    const data = await res.json();
+    let data: Record<string, any> = {};
+    try {
+      data = await res.json();
+    } catch {
+      const msg =
+        res.status === 413
+          ? "The uploaded images are too large in a single request. Please use smaller images."
+          : `Server returned status ${res.status}. Please refresh and try again.`;
+      notify(msg, "err");
+      throw new Error(msg);
+    }
     if (!res.ok) {
+      if (res.status === 401) {
+        const msg = "Your login session expired. Please open /admin/login in a new tab, sign in, and click Save again.";
+        notify(msg, "err");
+        throw new Error(msg);
+      }
       notify(data.error || "Action failed.", "err");
       throw new Error(data.error || "Failed");
     }
@@ -296,15 +313,70 @@ export function AdminDashboardClient({
     router.refresh();
   }
 
+  async function compressImageIfNeeded(file: File): Promise<File> {
+    if (typeof window === "undefined" || !file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
+      return file;
+    }
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const maxDim = 1400;
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim && file.size <= 350 * 1024) {
+          resolve(file);
+          return;
+        }
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const baseName = file.name.replace(/\.[^/.]+$/, "");
+            resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          0.82
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+      };
+      img.src = objectUrl;
+    });
+  }
+
   async function handleUploadFile(
     file: File,
     onUploaded: (url: string, mediaType: "image" | "video", filename: string) => void
   ) {
     setUploadingMedia(true);
     try {
+      const optimizedFile = await compressImageIfNeeded(file);
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("caption", editingArticle?.title || file.name);
+      fd.append("file", optimizedFile);
+      fd.append("caption", editingArticle?.title || optimizedFile.name);
       fd.append("credit", session.name);
 
       const res = await fetch("/api/upload", {
@@ -429,9 +501,22 @@ export function AdminDashboardClient({
     }
   }
 
-  async function handleSaveArticle(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveArticleWithStatus(overrideStatus?: ArticleStatus) {
     if (!editingArticle) return;
+    setEditorError("");
+
+    const cleanTitle = (editingArticle.title || "").trim();
+    if (!cleanTitle) {
+      const msg = "Please enter a Headline / Title for your article before saving.";
+      setEditorError(msg);
+      notify(msg, "err");
+      if (typeof window !== "undefined") {
+        document.getElementById("article-title-input")?.focus();
+      }
+      return;
+    }
+
+    setSavingArticle(true);
     try {
       const cleanedBlocks = articleBlocks.filter((b) => {
         if (b.type === "paragraph" || b.type === "heading" || b.type === "quote") {
@@ -462,19 +547,51 @@ export function AdminDashboardClient({
           ? extractedParagraphs
           : fallbackParagraphs.length > 0
           ? fallbackParagraphs
-          : ["Draft paragraph."];
+          : [cleanTitle];
+
+      // Auto-fill summary from first paragraph if the user left Standfirst / Summary blank
+      const finalSummary =
+        (editingArticle.summary || "").trim() ||
+        finalParagraphs[0]?.slice(0, 200) ||
+        cleanTitle;
+
+      const finalStatus: ArticleStatus =
+        overrideStatus || (editingArticle.status as ArticleStatus) || "Draft";
+
+      // Auto-prefix https:// if sourceUrl was typed without a protocol
+      let cleanSourceUrl = (editingArticle.sourceUrl || "").trim();
+      if (cleanSourceUrl && !/^https?:\/\//i.test(cleanSourceUrl) && !cleanSourceUrl.startsWith("/")) {
+        cleanSourceUrl = `https://${cleanSourceUrl}`;
+      }
 
       const data = await apiAction("save_article", {
         ...editingArticle,
+        title: cleanTitle,
+        summary: finalSummary,
+        sourceUrl: cleanSourceUrl,
+        status: finalStatus,
         bodyParagraphs: finalParagraphs,
         contentBlocks: cleanedBlocks.length > 0 ? cleanedBlocks : undefined,
       });
       setArticles(data.articles);
       setEditingArticle(null);
-      notify("Article saved successfully.");
-    } catch {
-      // handled
+      notify(
+        finalStatus === "Published"
+          ? `Article "${cleanTitle}" is now PUBLISHED live on the website!`
+          : `Article "${cleanTitle}" saved as ${finalStatus}.`
+      );
+    } catch (err) {
+      setEditorError(
+        err instanceof Error ? err.message : "Could not save article. Please check your connection."
+      );
+    } finally {
+      setSavingArticle(false);
     }
+  }
+
+  async function handleSaveArticle(e: React.FormEvent) {
+    e.preventDefault();
+    await saveArticleWithStatus();
   }
 
   async function handleArticleStatus(id: string, status: ArticleStatus) {
@@ -1086,7 +1203,37 @@ export function AdminDashboardClient({
                   <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, margin: 0 }}>
                     {editingArticle.id ? `Edit Article: ${editingArticle.title}` : "Create New Article"}
                   </h3>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      disabled={savingArticle}
+                      style={{ padding: "6px 12px", fontSize: 12.5 }}
+                      onClick={() => saveArticleWithStatus("Draft")}
+                    >
+                      {savingArticle ? "Saving..." : "💾 Save as Draft"}
+                    </button>
+                    {canPublish ? (
+                      <button
+                        type="button"
+                        className="btn btn-gold"
+                        disabled={savingArticle}
+                        style={{ padding: "6px 14px", fontSize: 12.5 }}
+                        onClick={() => saveArticleWithStatus("Published")}
+                      >
+                        {savingArticle ? "Publishing..." : "🚀 Publish Live Now"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={savingArticle}
+                        style={{ padding: "6px 14px", fontSize: 12.5 }}
+                        onClick={() => saveArticleWithStatus("Submitted for Review")}
+                      >
+                        {savingArticle ? "Submitting..." : "📤 Submit for Review"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-outline"
@@ -1111,20 +1258,39 @@ export function AdminDashboardClient({
                       type="button"
                       className="btn btn-outline"
                       style={{ padding: "6px 12px", fontSize: 12.5 }}
-                      onClick={() => setEditingArticle(null)}
+                      onClick={() => {
+                        setEditorError("");
+                        setEditingArticle(null);
+                      }}
                     >
                       Cancel
                     </button>
                   </div>
                 </div>
 
-                <form onSubmit={handleSaveArticle}>
+                {editorError && (
+                  <div
+                    className="notice"
+                    style={{
+                      marginBottom: 16,
+                      background: "#FEE2E2",
+                      borderLeftColor: "#991B1B",
+                      color: "#991B1B",
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠ {editorError}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveArticle} noValidate>
                   <div className="grid-2">
                     <div className="f-row">
-                      <label>Headline / Title *</label>
+                      <label htmlFor="article-title-input">Headline / Title *</label>
                       <input
+                        id="article-title-input"
                         type="text"
-                        required
+                        placeholder="Enter the news headline..."
                         value={editingArticle.title || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
                       />
@@ -1145,10 +1311,15 @@ export function AdminDashboardClient({
                   </div>
 
                   <div className="f-row">
-                    <label>Standfirst / Summary *</label>
+                    <label>
+                      Standfirst / Summary{" "}
+                      <span style={{ fontWeight: 400, color: "var(--ink-3)", fontSize: 12 }}>
+                        (optional — auto-filled from your first paragraph if left blank)
+                      </span>
+                    </label>
                     <input
                       type="text"
-                      required
+                      placeholder="Short 1–2 sentence summary of the story..."
                       value={editingArticle.summary || ""}
                       onChange={(e) => setEditingArticle({ ...editingArticle, summary: e.target.value })}
                     />
@@ -1807,9 +1978,10 @@ export function AdminDashboardClient({
                       />
                     </div>
                     <div className="f-row">
-                      <label>Primary Source URL (https://...)</label>
+                      <label>Primary Source URL (optional)</label>
                       <input
-                        type="url"
+                        type="text"
+                        placeholder="https://..."
                         value={editingArticle.sourceUrl || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, sourceUrl: e.target.value })}
                       />
@@ -2045,15 +2217,77 @@ export function AdminDashboardClient({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    <button type="submit" className="btn btn-primary">
-                      Save Article
+                  {editorError && (
+                    <div
+                      className="notice"
+                      style={{
+                        marginBottom: 14,
+                        background: "#FEE2E2",
+                        borderLeftColor: "#991B1B",
+                        color: "#991B1B",
+                        fontWeight: 600,
+                      }}
+                    >
+                      ⚠ {editorError}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 10,
+                      alignItems: "center",
+                      padding: "14px 16px",
+                      background: "var(--ivory-2)",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      disabled={savingArticle}
+                      onClick={() => saveArticleWithStatus("Draft")}
+                    >
+                      {savingArticle ? "Saving..." : "💾 Save as Draft"}
                     </button>
+
+                    {canPublish ? (
+                      <button
+                        type="button"
+                        className="btn btn-gold"
+                        disabled={savingArticle}
+                        onClick={() => saveArticleWithStatus("Published")}
+                      >
+                        {savingArticle ? "Publishing..." : "🚀 Publish Article Live Now"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={savingArticle}
+                        onClick={() => saveArticleWithStatus("Submitted for Review")}
+                      >
+                        {savingArticle ? "Submitting..." : "📤 Submit for Editorial Review"}
+                      </button>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={savingArticle}
+                    >
+                      {savingArticle
+                        ? "Saving..."
+                        : `✅ Save with Selected Status (${editingArticle.status || "Draft"})`}
+                    </button>
+
                     {canPublish && editingArticle.id && (
                       <button
                         type="button"
                         className="btn btn-outline"
-                        style={{ color: "#991B1B", borderColor: "#FCA5A5" }}
+                        style={{ color: "#991B1B", borderColor: "#FCA5A5", marginLeft: "auto" }}
                         onClick={() =>
                           handleDeleteArticle(
                             editingArticle.id!,
