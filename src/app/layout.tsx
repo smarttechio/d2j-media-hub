@@ -4,7 +4,7 @@ import { SvgDefs } from "@/components/SvgSprite";
 import { HeaderClient, NewsletterForm, Footer } from "@/components/HeaderFooter";
 import { getSiteSettings } from "@/lib/db";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://d2j-media-hub.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://dpathtojannah.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
