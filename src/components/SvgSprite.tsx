@@ -134,7 +134,7 @@ export function ArtIllustration({
     if (featuredImage) {
       return (
         <>
-          <img src={featuredImage} alt={label} loading="lazy" />
+          <img src={featuredImage} alt={label} loading="lazy" decoding="async" />
           {!hideBadge && <em>▶ Video · Photograph</em>}
         </>
       );
@@ -152,7 +152,7 @@ export function ArtIllustration({
   if (featuredImage) {
     return (
       <>
-        <img src={featuredImage} alt={label} loading="lazy" />
+        <img src={featuredImage} alt={label} loading="lazy" decoding="async" />
         {!hideBadge && <em>Photograph</em>}
       </>
     );

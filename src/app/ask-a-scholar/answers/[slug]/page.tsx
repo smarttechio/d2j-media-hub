@@ -18,9 +18,26 @@ export async function generateMetadata({
   const { slug } = await params;
   const qa = getPublishedScholarAnswerBySlug(slug);
   if (!qa) return { title: "Q&A Not Found" };
+  const canonicalPath = `/ask-a-scholar/answers/${qa.slug}`;
   return {
     title: qa.subject,
     description: qa.publicQuestionSummary || qa.questionText,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      title: qa.subject,
+      description: qa.publicQuestionSummary || qa.questionText,
+      url: canonicalPath,
+      type: "article",
+      images: [{ url: "/logo.webp", alt: qa.subject }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: qa.subject,
+      description: qa.publicQuestionSummary || qa.questionText,
+      images: ["/logo.webp"],
+    },
   };
 }
 

@@ -1083,6 +1083,13 @@ figcaption {
 }
 .bd dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.bd a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .upd {
   background: var(--sg);
@@ -1173,6 +1180,9 @@ figcaption {
 .oc dd,
 .vl dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .oc .row {
   display: flex;
@@ -2462,6 +2472,17 @@ a.cv:hover b {
   .grid-3,
   .grid-4 {
     grid-template-columns: 1fr;
+  }
+  .bd dl {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .bd dd {
+    margin-bottom: 8px;
+  }
+  .shr {
+    margin-left: 0;
+    width: 100%;
   }
 }
 

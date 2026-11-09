@@ -75,9 +75,19 @@ Visit `http://localhost:3000/admin/login` to access the editorial dashboard. Cre
 
 | Role | Environment Variables | Default Local Dev Email | Permissions |
 | :--- | :--- | :--- | :--- |
-| **ADMINISTRATOR** | `D2J_ADMIN_EMAIL`, `D2J_ADMIN_PASSWORD` | `admin@d2jmediahub.local` | Full platform, content, workflow, settings, and user management |
+| **SUPER_ADMIN** | `D2J_ADMIN_EMAIL`, `D2J_ADMIN_PASSWORD` | `admin@d2jmediahub.local` | Full platform, content, workflow, settings, user management, and reviewing other admins |
 | **EDITOR** | `D2J_EDITOR_EMAIL`, `D2J_EDITOR_PASSWORD` | `editor@d2jmediahub.local` | Review, edit, approve, and publish articles, opportunities, stories, and Q&A |
-| **CONTRIBUTOR** | `D2J_CONTRIBUTOR_EMAIL`, `D2J_CONTRIBUTOR_PASSWORD` | `contributor@d2jmediahub.local` | Create drafts and submit articles for editorial review (cannot self-publish) |
+| **CONTRIBUTOR** | `D2J_CONTRIBUTOR_EMAIL`, `D2J_CONTRIBUTOR_PASSWORD` | `contributor@d2jmediahub.local` | Create drafts and submit articles for editorial review (cannot self-publish or view private submissions) |
 | **SCHOLAR** | `D2J_SCHOLAR_EMAIL`, `D2J_SCHOLAR_PASSWORD` | `scholar@d2jmediahub.local` | Screen and review assigned Islamic questions and prepare scholarly responses |
 
-> **Security Note:** Default passwords are only active in local development (`D2J_Admin_Secure_2026!`, `D2J_Editor_Secure_2026!`, `D2J_Contrib_Secure_2026!`, `D2J_Scholar_Secure_2026!`) and are never displayed on any public page. Override them via `.env.local` in staging/production.
+> **Security Note:** Default passwords are only active in local development (`D2J_Admin_Secure_2026!`, `D2J_Editor_Secure_2026!`, `D2J_Contrib_Secure_2026!`, `D2J_Scholar_Secure_2026!`) and are never displayed on any public page. Override them via `.env.local` or Vercel Environment Variables in production.
+
+---
+
+## 5. Production Database & Media Storage (Supabase PostgreSQL + Storage)
+
+D2J Media Hub includes a dual-mode persistence layer (`src/lib/db.ts` + `src/lib/supabase.ts`):
+- **Production Mode (Supabase Configured)**: When `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set, all articles, drafts, categories, authors, opportunities, private `Ask a Scholar` questions, story submissions, contact enquiries, users, and activity logs persist in **Supabase PostgreSQL** (`d2j_app_state` + relational tables), and uploaded images/videos are stored in **Supabase Storage** (`d2j-media` bucket).
+- **Safe Non-Destructive Migration**:
+  1. Run [`supabase/migrations/001_d2j_schema.sql`](supabase/migrations/001_d2j_schema.sql) in the Supabase SQL Editor.
+  2. Run `node scripts/migrate-to-supabase.mjs` to seed existing data from `data/db.json` with `resolution=ignore-duplicates` (never overwrites or deletes existing production records).

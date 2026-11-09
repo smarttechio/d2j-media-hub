@@ -1,8 +1,15 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentSession, canManageUsers, canReviewOtherAdmins } from '@/lib/auth';
-import { readDb } from '@/lib/db';
+import {
+  getCurrentSession,
+  canManageUsers,
+  canReviewOtherAdmins,
+  canReviewScholarQuestions,
+  canPublishContent,
+  hasPermission,
+} from '@/lib/auth';
+import { ensureDbSynced } from '@/lib/db';
 import { AdminDashboardClient } from './AdminDashboardClient';
 
 export const metadata: Metadata = {
@@ -16,11 +23,17 @@ export default async function AdminPage() {
     redirect('/admin/login');
   }
 
-  const db = readDb();
+  const db = await ensureDbSynced();
   const safeUsers = db.users.map(({ passwordHash: _ph, ...u }) => u);
   const canSeeUsers =
     canManageUsers(session.role, session.permissions) ||
     canReviewOtherAdmins(session.role, session.permissions);
+  const canSeeScholar = canReviewScholarQuestions(session.role, session.permissions);
+  const canSeeStorySubs =
+    hasPermission(session, 'story-submissions') ||
+    canPublishContent(session.role, session.permissions);
+  const canSeeContacts =
+    hasPermission(session, 'contacts') || canPublishContent(session.role, session.permissions);
 
   return (
     <AdminDashboardClient
@@ -29,9 +42,12 @@ export default async function AdminPage() {
       initialCategories={db.categories}
       initialAuthors={db.authors}
       initialOpportunities={db.opportunities}
-      initialScholarQuestions={db.scholarQuestions}
-      initialStorySubmissions={db.storySubmissions}
-      initialContactSubmissions={db.contactSubmissions}
+      initialScholarQuestions={canSeeScholar ? db.scholarQuestions : []}
+      initialStorySubmissions={canSeeStorySubs ? db.storySubmissions : []}
+      initialContactSubmissions={canSeeContacts ? db.contactSubmissions : []}
+      initialComments={
+        canPublishContent(session.role, session.permissions) ? db.comments || [] : []
+      }
       initialMedia={db.media}
       initialUsers={canSeeUsers ? safeUsers : []}
       initialActivityLogs={

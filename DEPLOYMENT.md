@@ -33,7 +33,12 @@ See [`.env.example`](file:///c:/Users/HP/Downloads/Dpj/d2j-media-hub/.env.exampl
 
 ```env
 # Public Canonical Site URL (used by sitemap.xml, robots.txt, and Open Graph metadata)
-NEXT_PUBLIC_SITE_URL=https://d2jmediahub.com
+NEXT_PUBLIC_SITE_URL=https://d2j-media-hub.vercel.app
+
+# Supabase PostgreSQL & Durable Storage (Required for permanent persistence on Vercel)
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_secret_key
+SUPABASE_STORAGE_BUCKET=d2j-media
 
 # HMAC-SHA256 Secret for HTTP-Only Editorial Session Cookies
 D2J_SESSION_SECRET=replace_with_64_char_random_hex_secret
@@ -51,6 +56,21 @@ D2J_CONTRIBUTOR_PASSWORD=replace_with_strong_contributor_password
 D2J_SCHOLAR_EMAIL=scholars@d2jmediahub.com
 D2J_SCHOLAR_PASSWORD=replace_with_strong_scholar_password
 ```
+
+---
+
+## 3. Supabase PostgreSQL & Storage Migration (Non-Destructive)
+
+1. Open your Supabase project dashboard → **SQL Editor**.
+2. Paste and run [`supabase/migrations/001_d2j_schema.sql`](file:///c:/Users/HP/Downloads/Dpj/d2j-media-hub/supabase/migrations/001_d2j_schema.sql).
+   - Creates `d2j_app_state`, `categories`, `users`, `authors`, `articles`, `opportunities`, `scholar_questions`, `story_submissions`, `contact_submissions`, `media`, `admin_activity_logs`, Row-Level Security (RLS) policies, and the `d2j-media` Storage bucket using `CREATE TABLE IF NOT EXISTS`.
+3. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to your Vercel Project Settings → **Environment Variables**.
+4. To migrate existing records from `data/db.json` into Supabase safely without overwriting existing rows:
+   ```bash
+   SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co" \
+   SUPABASE_SERVICE_ROLE_KEY="your_service_role_key" \
+   node scripts/migrate-to-supabase.mjs
+   ```
 
 ---
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb, ContactSubmission } from '@/lib/db';
+import { ensureDbSynced, writeDbAsync, ContactSubmission } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await ensureDbSynced();
     const newContact: ContactSubmission = {
       id: `contact-${Date.now()}`,
       name: String(name).trim().slice(0, 120),
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     };
 
     db.contactSubmissions.unshift(newContact);
-    saveDb(db);
+    await writeDbAsync(db);
 
     return NextResponse.json({
       ok: true,

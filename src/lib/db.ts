@@ -2,10 +2,35 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
+import {
+  isSupabaseConfigured,
+  loadStateFromSupabase,
+  saveStateToSupabase,
+} from "./supabase";
 
 export type ArticleStatus = "Draft" | "Submitted for Review" | "Approved" | "Published" | "Unpublished";
 export type VerificationType = "V" | "S" | "D"; // Verified source, Source checked, Demo content
 export type ArtTheme = "campus" | "library" | "quran" | "community" | "biz" | "well";
+
+export type ArticleBlockType =
+  | "paragraph"
+  | "heading"
+  | "image"
+  | "gallery"
+  | "quote"
+  | "video";
+
+export interface ArticleContentBlock {
+  id: string;
+  type: ArticleBlockType;
+  text?: string;
+  imageUrl?: string;
+  imageCaption?: string;
+  secondImageUrl?: string;
+  secondImageCaption?: string;
+  videoUrl?: string;
+  quoteAttribution?: string;
+}
 
 export interface Article {
   id: string;
@@ -15,6 +40,7 @@ export interface Article {
   tags: string[];
   summary: string;
   body: string[];
+  contentBlocks?: ArticleContentBlock[];
   authorId: string;
   authorName: string;
   publishedAt: string;
@@ -37,6 +63,19 @@ export interface Article {
   lastEditedById?: string;
   approvedBy?: string;
   approvedById?: string;
+}
+
+export interface ArticleComment {
+  id: string;
+  articleId: string;
+  articleSlug: string;
+  articleTitle: string;
+  authorName: string;
+  authorEmail?: string;
+  locationOrCampus?: string;
+  content: string;
+  createdAt: string;
+  status: "Approved" | "Pending" | "Hidden";
 }
 
 export interface Category {
@@ -262,6 +301,7 @@ export interface AdminActivityLog {
     | "scholar_qa"
     | "story_submission"
     | "contact"
+    | "comment"
     | "user"
     | "category"
     | "author"
@@ -305,6 +345,7 @@ export interface DatabaseSchema {
   scholarQuestions: ScholarQuestion[];
   storySubmissions: StorySubmission[];
   contactSubmissions: ContactSubmission[];
+  comments?: ArticleComment[];
   media: MediaItem[];
   users: User[];
   activityLogs?: AdminActivityLog[];
@@ -949,13 +990,28 @@ const DEFAULT_ACTIVITY_LOGS: AdminActivityLog[] = [
   },
 ];
 
+const DEFAULT_COMMENTS: ArticleComment[] = [
+  {
+    id: "cmt-seed-1",
+    articleId: "art-1",
+    articleSlug: "mssn-lagos-names-new-leadership-and-outlines-priorities-for-students",
+    articleTitle: "MSSN Lagos names new leadership and outlines priorities for students",
+    authorName: "Abdullah Lawal",
+    locationOrCampus: "UNILAG Chapter",
+    content:
+      "Barakallahu feekum to the outgoing and incoming executives. Focusing on academic tutorials and welfare support on campus is exactly what students need right now.",
+    createdAt: "2026-10-28T11:30:00Z",
+    status: "Approved",
+  },
+];
+
 const DEFAULT_SETTINGS: SiteSettings = {
   siteName: "D-Path to Jannah Media Hub",
   shortName: "D2J Media Hub",
   tagline: "Voice in propagation of the truth",
   breakingNewsEnabled: true,
   breakingNewsText: "MSSN Lagos names new leadership and outlines priorities for students",
-  breakingNewsUrl: "/news/campus/mssn-lagos-new-leadership",
+  breakingNewsUrl: "/news/campus/mssn-lagos-names-new-leadership-and-outlines-priorities-for-students",
   newsletterProviderConfigured: false,
   newsletterProviderName: "Pending Provider Configuration",
   officialEmail: "[Official email address, to be supplied]",
@@ -969,13 +1025,70 @@ const DEFAULT_SETTINGS: SiteSettings = {
 };
 
 const TMP_DB_PATH = path.join(os.tmpdir(), "d2j-media-hub-db.json");
+let memoryDbCache: DatabaseSchema | null = null;
+let lastSupabaseSyncAt = 0;
+
+function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
+  if (Array.isArray(parsed.users)) {
+    const defaultAdminHash = hashPassword("D2J_Admin_Secure_2026!");
+    parsed.users = parsed.users.map((u) => {
+      const isSuper = Boolean(u.isSuperAdmin || u.id === "usr-admin" || u.role === "SUPER_ADMIN");
+      const effectiveRole: UserRole = isSuper && u.id === "usr-admin" ? "SUPER_ADMIN" : u.role;
+      const updatedEmail =
+        u.id === "usr-admin" &&
+        u.email === "admin@d2jmediahub.local" &&
+        process.env.D2J_ADMIN_EMAIL
+          ? process.env.D2J_ADMIN_EMAIL.toLowerCase().trim()
+          : u.email;
+      const updatedHash =
+        u.id === "usr-admin" &&
+        u.passwordHash === defaultAdminHash &&
+        process.env.D2J_ADMIN_PASSWORD
+          ? hashPassword(process.env.D2J_ADMIN_PASSWORD)
+          : u.passwordHash;
+      return {
+        ...u,
+        email: updatedEmail,
+        passwordHash: updatedHash,
+        role: effectiveRole,
+        isSuperAdmin: isSuper,
+        permissions:
+          Array.isArray(u.permissions) && u.permissions.length > 0
+            ? u.permissions
+            : getDefaultPermissionsForRole(effectiveRole),
+        allowedCategories:
+          Array.isArray(u.allowedCategories) && u.allowedCategories.length > 0
+            ? u.allowedCategories
+            : ["ALL"],
+      };
+    });
+  }
+  if (!Array.isArray(parsed.activityLogs)) {
+    parsed.activityLogs = DEFAULT_ACTIVITY_LOGS;
+  }
+  if (!Array.isArray(parsed.comments)) {
+    parsed.comments = DEFAULT_COMMENTS;
+  }
+  if (
+    parsed.settings &&
+    parsed.settings.breakingNewsUrl === "/news/campus/mssn-lagos-new-leadership"
+  ) {
+    parsed.settings.breakingNewsUrl =
+      "/news/campus/mssn-lagos-names-new-leadership-and-outlines-priorities-for-students";
+  }
+  return parsed;
+}
 
 export function readDb(): DatabaseSchema {
+  if (memoryDbCache && isSupabaseConfigured() && Date.now() - lastSupabaseSyncAt < 10000) {
+    return memoryDbCache;
+  }
+
   // If running on a read-only serverless filesystem where TMP_DB_PATH was already written, read from TMP_DB_PATH first
   const activePath = fs.existsSync(TMP_DB_PATH) ? TMP_DB_PATH : DB_PATH;
 
   if (!fs.existsSync(activePath)) {
-    const initial: DatabaseSchema = {
+    const initial: DatabaseSchema = normalizeDatabaseSchema({
       articles: DEFAULT_ARTICLES,
       categories: DEFAULT_CATEGORIES,
       authors: DEFAULT_AUTHORS,
@@ -997,55 +1110,17 @@ export function readDb(): DatabaseSchema {
       users: DEFAULT_USERS,
       activityLogs: DEFAULT_ACTIVITY_LOGS,
       settings: DEFAULT_SETTINGS,
-    };
+    });
     writeDb(initial);
     return initial;
   }
   try {
     const raw = fs.readFileSync(activePath, "utf8");
-    const parsed = JSON.parse(raw) as DatabaseSchema;
-
-    // Ensure seamless migration for Super Admin, permissions, and activity logs
-    if (Array.isArray(parsed.users)) {
-      const defaultAdminHash = hashPassword("D2J_Admin_Secure_2026!");
-      parsed.users = parsed.users.map((u) => {
-        const isSuper = Boolean(u.isSuperAdmin || u.id === "usr-admin" || u.role === "SUPER_ADMIN");
-        const effectiveRole: UserRole = isSuper && u.id === "usr-admin" ? "SUPER_ADMIN" : u.role;
-        const updatedEmail =
-          u.id === "usr-admin" &&
-          u.email === "admin@d2jmediahub.local" &&
-          process.env.D2J_ADMIN_EMAIL
-            ? process.env.D2J_ADMIN_EMAIL.toLowerCase().trim()
-            : u.email;
-        const updatedHash =
-          u.id === "usr-admin" &&
-          u.passwordHash === defaultAdminHash &&
-          process.env.D2J_ADMIN_PASSWORD
-            ? hashPassword(process.env.D2J_ADMIN_PASSWORD)
-            : u.passwordHash;
-        return {
-          ...u,
-          email: updatedEmail,
-          passwordHash: updatedHash,
-          role: effectiveRole,
-          isSuperAdmin: isSuper,
-          permissions:
-            Array.isArray(u.permissions) && u.permissions.length > 0
-              ? u.permissions
-              : getDefaultPermissionsForRole(effectiveRole),
-          allowedCategories:
-            Array.isArray(u.allowedCategories) && u.allowedCategories.length > 0
-              ? u.allowedCategories
-              : ["ALL"],
-        };
-      });
-    }
-    if (!Array.isArray(parsed.activityLogs)) {
-      parsed.activityLogs = DEFAULT_ACTIVITY_LOGS;
-    }
+    const parsed = normalizeDatabaseSchema(JSON.parse(raw) as DatabaseSchema);
+    memoryDbCache = parsed;
     return parsed;
   } catch {
-    return {
+    const fallback = normalizeDatabaseSchema({
       articles: DEFAULT_ARTICLES,
       categories: DEFAULT_CATEGORIES,
       authors: DEFAULT_AUTHORS,
@@ -1057,11 +1132,37 @@ export function readDb(): DatabaseSchema {
       users: DEFAULT_USERS,
       activityLogs: DEFAULT_ACTIVITY_LOGS,
       settings: DEFAULT_SETTINGS,
-    };
+    });
+    memoryDbCache = fallback;
+    return fallback;
   }
 }
 
-export function writeDb(data: DatabaseSchema): void {
+/**
+ * Synchronises in-memory & local cache from Supabase PostgreSQL when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are configured.
+ * Safe to call in async Route Handlers and Server Components before `readDb()`.
+ */
+export async function ensureDbSynced(): Promise<DatabaseSchema> {
+  const localFallback = readDb();
+  if (!isSupabaseConfigured()) {
+    return localFallback;
+  }
+  try {
+    const remoteState = await loadStateFromSupabase(localFallback);
+    if (remoteState) {
+      const normalized = normalizeDatabaseSchema(remoteState);
+      memoryDbCache = normalized;
+      lastSupabaseSyncAt = Date.now();
+      writeLocalCacheOnly(normalized);
+      return normalized;
+    }
+  } catch {
+    // Fallback to local state if network fails
+  }
+  return localFallback;
+}
+
+function writeLocalCacheOnly(data: DatabaseSchema): void {
   const serialized = JSON.stringify(data, null, 2);
   try {
     if (!fs.existsSync(DB_DIR)) {
@@ -1069,12 +1170,31 @@ export function writeDb(data: DatabaseSchema): void {
     }
     fs.writeFileSync(DB_PATH, serialized, "utf8");
   } catch {
-    // Fallback for read-only serverless environments (e.g., Vercel / Cloud Run)
     try {
       fs.writeFileSync(TMP_DB_PATH, serialized, "utf8");
     } catch {
       // Ignore if tmp is also unavailable
     }
+  }
+}
+
+export function writeDb(data: DatabaseSchema): void {
+  const normalized = normalizeDatabaseSchema(data);
+  memoryDbCache = normalized;
+  lastSupabaseSyncAt = Date.now();
+  writeLocalCacheOnly(normalized);
+  if (isSupabaseConfigured()) {
+    void saveStateToSupabase(normalized, false);
+  }
+}
+
+export async function writeDbAsync(data: DatabaseSchema): Promise<void> {
+  const normalized = normalizeDatabaseSchema(data);
+  memoryDbCache = normalized;
+  lastSupabaseSyncAt = Date.now();
+  writeLocalCacheOnly(normalized);
+  if (isSupabaseConfigured()) {
+    await saveStateToSupabase(normalized, false);
   }
 }
 
@@ -1093,6 +1213,18 @@ export function getPublishedArticles(category?: string): Article[] {
 export function getPublishedArticleBySlug(slug: string): Article | undefined {
   const db = readDb();
   return db.articles.find((a) => a.slug === slug && a.status === "Published");
+}
+
+export function getApprovedCommentsForArticle(articleId: string, articleSlug?: string): ArticleComment[] {
+  const db = readDb();
+  const list = Array.isArray(db.comments) ? db.comments : [];
+  return list
+    .filter(
+      (c) =>
+        c.status === "Approved" &&
+        (c.articleId === articleId || (articleSlug && c.articleSlug === articleSlug))
+    )
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export function getPublishedOpportunities(): Opportunity[] {

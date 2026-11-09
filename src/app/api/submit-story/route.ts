@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb, StorySubmission } from '@/lib/db';
+import { ensureDbSynced, writeDbAsync, StorySubmission } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please provide a valid email address.' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await ensureDbSynced();
     const newSubmission: StorySubmission = {
       id: `story-${Date.now()}`,
       contributorName: String(contributorName).trim().slice(0, 120),
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     };
 
     db.storySubmissions.unshift(newSubmission);
-    saveDb(db);
+    await writeDbAsync(db);
 
     return NextResponse.json({
       ok: true,

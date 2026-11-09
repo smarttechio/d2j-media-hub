@@ -6,7 +6,7 @@ import {
   getCategories,
 } from '@/lib/db';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://d2jmediahub.com';
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://d2j-media-hub.vercel.app').replace(/\/+$/, '');
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages = [

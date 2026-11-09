@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb, ScholarQuestion } from '@/lib/db';
+import { ensureDbSynced, writeDbAsync, ScholarQuestion } from '@/lib/db';
 
 function slugify(input: string): string {
   return input
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please provide a valid email address.' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await ensureDbSynced();
     const id = `qa-${Date.now()}`;
     const newQuestion: ScholarQuestion = {
       id,
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     };
 
     db.scholarQuestions.unshift(newQuestion);
-    saveDb(db);
+    await writeDbAsync(db);
 
     return NextResponse.json({
       ok: true,

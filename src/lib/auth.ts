@@ -1,14 +1,24 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import {
-  readDb,
+  ensureDbSynced,
   User,
   UserRole,
   DashboardPermission,
   getDefaultPermissionsForRole,
 } from "./db";
 
-const SECRET = process.env.D2J_SESSION_SECRET || "d2j_media_hub_internal_hmac_secret_2026_key";
+function getSessionSecret(): string {
+  const configured =
+    process.env.D2J_SESSION_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.D2J_ADMIN_PASSWORD;
+  if (configured && configured.trim().length >= 12) {
+    return crypto.createHash("sha256").update(`d2j-hmac:${configured.trim()}`).digest("hex");
+  }
+  return "d2j_media_hub_internal_hmac_secret_2026_key";
+}
+
 export const SESSION_COOKIE_NAME = "d2j_editorial_session";
 
 export interface SessionPayload {
@@ -43,15 +53,20 @@ export function createSessionToken(user: User): string {
     exp: Date.now() + 1000 * 60 * 60 * 12, // 12 hours
   };
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
+  const sig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
   return `${data}.${sig}`;
 }
 
 export function verifySessionToken(token?: string): SessionPayload | null {
   if (!token || !token.includes(".")) return null;
   const [data, sig] = token.split(".");
-  const expectedSig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
-  if (sig !== expectedSig) return null;
+  if (!data || !sig) return null;
+  const expectedSig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
   try {
     const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8")) as SessionPayload;
     if (Date.now() > payload.exp) return null;
@@ -68,7 +83,7 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
   const session = verifySessionToken(token);
   if (!session) return null;
   // Confirm user still active in DB and sync latest role & permissions assigned by Super Admin
-  const db = readDb();
+  const db = await ensureDbSynced();
   const user = db.users.find((u) => u.id === session.userId && u.active);
   if (!user) return null;
   const isSuper = Boolean(user.isSuperAdmin || user.role === "SUPER_ADMIN" || user.id === "usr-admin");

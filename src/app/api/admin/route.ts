@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  readDb,
-  writeDb,
+  ensureDbSynced,
+  writeDbAsync,
   hashPassword,
   Article,
   ArticleStatus,
@@ -16,6 +16,7 @@ import {
 } from '@/lib/db';
 import {
   getCurrentSession,
+  hasPermission,
   canPublishContent,
   canManageUsers,
   canReviewOtherAdmins,
@@ -61,11 +62,17 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
   }
 
-  const db = readDb();
+  const db = await ensureDbSynced();
   const safeUsers = db.users.map(({ passwordHash: _ph, ...u }) => u);
   const canSeeUsers =
     canManageUsers(session.role, session.permissions) ||
     canReviewOtherAdmins(session.role, session.permissions);
+  const canSeeScholar = canReviewScholarQuestions(session.role, session.permissions);
+  const canSeeStorySubs =
+    hasPermission(session, 'story-submissions') ||
+    canPublishContent(session.role, session.permissions);
+  const canSeeContacts =
+    hasPermission(session, 'contacts') || canPublishContent(session.role, session.permissions);
 
   return NextResponse.json({
     session,
@@ -73,9 +80,10 @@ export async function GET() {
     categories: db.categories,
     authors: db.authors,
     opportunities: db.opportunities,
-    scholarQuestions: db.scholarQuestions,
-    storySubmissions: db.storySubmissions,
-    contactSubmissions: db.contactSubmissions,
+    scholarQuestions: canSeeScholar ? db.scholarQuestions : [],
+    storySubmissions: canSeeStorySubs ? db.storySubmissions : [],
+    contactSubmissions: canSeeContacts ? db.contactSubmissions : [],
+    comments: canPublishContent(session.role, session.permissions) ? db.comments || [] : [],
     media: db.media,
     users: canSeeUsers ? safeUsers : [],
     activityLogs: canReviewOtherAdmins(session.role, session.permissions)
@@ -94,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action, payload } = body;
-    const db = readDb();
+    const db = await ensureDbSynced();
 
     // 1. CREATE OR UPDATE ARTICLE
     if (action === 'save_article') {
@@ -110,6 +118,7 @@ export async function POST(req: NextRequest) {
         featuredVideo,
         imageCaption,
         bodyParagraphs,
+        contentBlocks,
         status,
         verification,
         sourceName,
@@ -149,6 +158,23 @@ export async function POST(req: NextRequest) {
 
       if (existingIdx >= 0) {
         const current = db.articles[existingIdx];
+        if (!canPublishContent(session.role, session.permissions)) {
+          if (current.status === 'Published' || current.status === 'Approved') {
+            return NextResponse.json(
+              {
+                error:
+                  'Contributors cannot modify or unpublish articles that have already been approved or published.',
+              },
+              { status: 403 }
+            );
+          }
+          if (current.authorId !== session.userId && current.lastEditedById !== session.userId) {
+            return NextResponse.json(
+              { error: 'Contributors can only edit their own drafts and submissions.' },
+              { status: 403 }
+            );
+          }
+        }
         const prevStatus = current.status;
         db.articles[existingIdx] = {
           ...current,
@@ -165,6 +191,7 @@ export async function POST(req: NextRequest) {
             featuredVideo !== undefined ? featuredVideo || undefined : current.featuredVideo,
           imageCaption: imageCaption ?? current.imageCaption,
           body: Array.isArray(bodyParagraphs) ? bodyParagraphs : current.body,
+          contentBlocks: Array.isArray(contentBlocks) ? contentBlocks : current.contentBlocks,
           status: requestedStatus,
           verification: verification ?? current.verification,
           sourceName: sourceName ?? current.sourceName,
@@ -210,6 +237,7 @@ export async function POST(req: NextRequest) {
             Array.isArray(bodyParagraphs) && bodyParagraphs.length > 0
               ? bodyParagraphs
               : ['Draft paragraph.'],
+          contentBlocks: Array.isArray(contentBlocks) ? contentBlocks : undefined,
           category: String(category || 'news'),
           tags: Array.isArray(tags) ? tags : ['News'],
           authorId: session.userId,
@@ -251,7 +279,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         articles: db.articles,
@@ -262,17 +290,29 @@ export async function POST(req: NextRequest) {
     // 2. TRANSITION ARTICLE WORKFLOW STATUS
     if (action === 'update_article_status') {
       const { id, status } = payload as { id: string; status: ArticleStatus };
-      if (
-        (status === 'Approved' || status === 'Published') &&
-        !canPublishContent(session.role, session.permissions)
-      ) {
+      const hasPubPerm = canPublishContent(session.role, session.permissions);
+      if ((status === 'Approved' || status === 'Published' || status === 'Unpublished') && !hasPubPerm) {
         return NextResponse.json(
-          { error: 'Only Editors and Administrators can approve or publish articles.' },
+          { error: 'Only Editors and Administrators can approve, publish, or unpublish articles.' },
           { status: 403 }
         );
       }
       const art = db.articles.find((a) => a.id === id);
       if (!art) return NextResponse.json({ error: 'Article not found.' }, { status: 404 });
+      if (!hasPubPerm) {
+        if (art.status === 'Published' || art.status === 'Approved') {
+          return NextResponse.json(
+            { error: 'Contributors cannot change the status of an approved or published article.' },
+            { status: 403 }
+          );
+        }
+        if (art.authorId !== session.userId && art.lastEditedById !== session.userId) {
+          return NextResponse.json(
+            { error: 'Contributors can only update the workflow status of their own drafts.' },
+            { status: 403 }
+          );
+        }
+      }
       const prevStatus = art.status;
       art.status = status;
       art.updatedAt = new Date().toISOString().slice(0, 10);
@@ -295,7 +335,7 @@ export async function POST(req: NextRequest) {
         details: `Category: ${art.category}`,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         articles: db.articles,
@@ -325,7 +365,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         articles: db.articles,
@@ -351,7 +391,7 @@ export async function POST(req: NextRequest) {
           statusChange: `${target.workflowStatus} → Deleted`,
         });
       }
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         opportunities: db.opportunities,
@@ -377,7 +417,7 @@ export async function POST(req: NextRequest) {
           statusChange: `${target.status} → Deleted`,
         });
       }
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         scholarQuestions: db.scholarQuestions,
@@ -402,7 +442,7 @@ export async function POST(req: NextRequest) {
           targetTitle: target.filename,
         });
       }
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         media: db.media,
@@ -492,7 +532,7 @@ export async function POST(req: NextRequest) {
           details: `Provider: ${newOpp.provider}`,
         });
       }
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         opportunities: db.opportunities,
@@ -565,7 +605,7 @@ export async function POST(req: NextRequest) {
         details: `Topic: ${qa.topic} · Reviewer: ${qa.scholarReviewerName || session.name}`,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         scholarQuestions: db.scholarQuestions,
@@ -632,7 +672,7 @@ export async function POST(req: NextRequest) {
         details: `Contributor: ${sub.contributorName}`,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         storySubmissions: db.storySubmissions,
@@ -643,6 +683,15 @@ export async function POST(req: NextRequest) {
 
     // 7. CONTACT SUBMISSION STATUS UPDATE
     if (action === 'update_contact_status') {
+      if (
+        !hasPermission(session, 'contacts') &&
+        !canPublishContent(session.role, session.permissions)
+      ) {
+        return NextResponse.json(
+          { error: 'Only Editors and Administrators can manage contact and correction enquiries.' },
+          { status: 403 }
+        );
+      }
       const { id, status } = payload as { id: string; status: 'New' | 'Reviewed' | 'Resolved' };
       const msg = db.contactSubmissions.find((c) => c.id === id);
       if (!msg) return NextResponse.json({ error: 'Contact message not found.' }, { status: 404 });
@@ -658,10 +707,68 @@ export async function POST(req: NextRequest) {
         details: `From: ${msg.name} (${msg.email})`,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         contactSubmissions: db.contactSubmissions,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    // 7B. READER COMMENTS MODERATION (APPROVE / HIDE / DELETE)
+    if (action === 'update_comment_status') {
+      if (!canPublishContent(session.role, session.permissions)) {
+        return NextResponse.json(
+          { error: 'Only Editors and Administrators can moderate reader comments.' },
+          { status: 403 }
+        );
+      }
+      const { id, status } = payload as { id: string; status: 'Approved' | 'Pending' | 'Hidden' };
+      if (!Array.isArray(db.comments)) db.comments = [];
+      const cmt = db.comments.find((c) => c.id === id);
+      if (!cmt) return NextResponse.json({ error: 'Comment not found.' }, { status: 404 });
+      const prevStatus = cmt.status;
+      cmt.status = status;
+
+      appendActivityLog(db, session, {
+        action: `Changed Reader Comment Status to ${status}`,
+        targetType: 'comment',
+        targetId: cmt.id,
+        targetTitle: `Comment by ${cmt.authorName} on "${cmt.articleTitle}"`,
+        statusChange: `${prevStatus} → ${status}`,
+      });
+
+      await writeDbAsync(db);
+      return NextResponse.json({
+        ok: true,
+        comments: db.comments,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    if (action === 'delete_comment') {
+      if (!canPublishContent(session.role, session.permissions)) {
+        return NextResponse.json(
+          { error: 'Only Editors and Administrators can delete reader comments.' },
+          { status: 403 }
+        );
+      }
+      if (!Array.isArray(db.comments)) db.comments = [];
+      const target = db.comments.find((c) => c.id === payload.id);
+      db.comments = db.comments.filter((c) => c.id !== payload.id);
+      if (target) {
+        appendActivityLog(db, session, {
+          action: 'Deleted Reader Comment',
+          targetType: 'comment',
+          targetId: target.id,
+          targetTitle: `Comment by ${target.authorName} on "${target.articleTitle}"`,
+          statusChange: `${target.status} → Deleted`,
+        });
+      }
+      await writeDbAsync(db);
+      return NextResponse.json({
+        ok: true,
+        comments: db.comments,
         activityLogs: db.activityLogs,
       });
     }
@@ -692,7 +799,7 @@ export async function POST(req: NextRequest) {
         targetTitle: String(name || slug),
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         categories: db.categories,
@@ -733,7 +840,7 @@ export async function POST(req: NextRequest) {
         details: `Role: ${role}`,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         authors: db.authors,
@@ -742,6 +849,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'save_media') {
+      if (
+        !hasPermission(session, 'media') &&
+        !canPublishContent(session.role, session.permissions)
+      ) {
+        return NextResponse.json(
+          { error: 'Your account does not have permission to register media assets.' },
+          { status: 403 }
+        );
+      }
       const { filename, url, caption, credit } = payload;
       db.media.unshift({
         id: `med-${Date.now()}`,
@@ -759,7 +875,7 @@ export async function POST(req: NextRequest) {
         targetTitle: String(filename || url),
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         media: db.media,
@@ -892,7 +1008,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      writeDb(db);
+      await writeDbAsync(db);
       const safeUsers = db.users.map(({ passwordHash: _ph, ...u }) => u);
       return NextResponse.json({
         ok: true,
@@ -927,7 +1043,7 @@ export async function POST(req: NextRequest) {
           statusChange: `${target.role} → Removed`,
         });
       }
-      writeDb(db);
+      await writeDbAsync(db);
       const safeUsers = db.users.map(({ passwordHash: _ph, ...u }) => u);
       return NextResponse.json({
         ok: true,
@@ -959,7 +1075,7 @@ export async function POST(req: NextRequest) {
       logEntry.reviewedBySuperAdmin = session.name;
       logEntry.reviewedAt = new Date().toISOString().slice(0, 10);
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         activityLogs: db.activityLogs,
@@ -985,7 +1101,7 @@ export async function POST(req: NextRequest) {
         targetTitle: db.settings.siteName,
       });
 
-      writeDb(db);
+      await writeDbAsync(db);
       return NextResponse.json({
         ok: true,
         settings: db.settings,

@@ -4,17 +4,39 @@ import { SvgDefs } from "@/components/SvgSprite";
 import { HeaderClient, NewsletterForm, Footer } from "@/components/HeaderFooter";
 import { getSiteSettings } from "@/lib/db";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://d2j-media-hub.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "D2J Media Hub | Voice in propagation of the truth",
     template: "%s | D2J Media Hub",
   },
   description:
     "D-Path to Jannah Media Hub (D2J Media Hub) is a Muslim-centred digital news platform with a special focus on youth and campus life in Nigeria.",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     siteName: "D2J Media Hub",
     type: "website",
     locale: "en_NG",
+    url: SITE_URL,
+    images: [
+      {
+        url: "/logo.webp",
+        width: 1200,
+        height: 630,
+        alt: "D-Path to Jannah Media Hub (D2J Media Hub)",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "D2J Media Hub | Voice in propagation of the truth",
+    description:
+      "D-Path to Jannah Media Hub (D2J Media Hub) is a Muslim-centred digital news platform with a special focus on youth and campus life in Nigeria.",
+    images: ["/logo.webp"],
   },
 };
 

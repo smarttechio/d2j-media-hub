@@ -6,6 +6,9 @@ import Link from "next/link";
 import type {
   AdminActivityLog,
   Article,
+  ArticleBlockType,
+  ArticleComment,
+  ArticleContentBlock,
   ArticleStatus,
   Author,
   Category,
@@ -138,6 +141,7 @@ interface AdminDashboardProps {
   initialScholarQuestions: ScholarQuestion[];
   initialStorySubmissions: StorySubmission[];
   initialContactSubmissions: ContactSubmission[];
+  initialComments?: ArticleComment[];
   initialMedia: MediaItem[];
   initialUsers: SafeUser[];
   initialActivityLogs?: AdminActivityLog[];
@@ -153,6 +157,7 @@ export function AdminDashboardClient({
   initialScholarQuestions,
   initialStorySubmissions,
   initialContactSubmissions,
+  initialComments = [],
   initialMedia,
   initialUsers,
   initialActivityLogs = [],
@@ -167,6 +172,7 @@ export function AdminDashboardClient({
   const [scholarQuestions, setScholarQuestions] = useState<ScholarQuestion[]>(initialScholarQuestions);
   const [storySubmissions, setStorySubmissions] = useState<StorySubmission[]>(initialStorySubmissions);
   const [contactSubmissions, setContactSubmissions] = useState<ContactSubmission[]>(initialContactSubmissions);
+  const [comments, setComments] = useState<ArticleComment[]>(initialComments);
   const [media, setMedia] = useState<MediaItem[]>(initialMedia);
   const [users, setUsers] = useState<SafeUser[]>(initialUsers);
   const [activityLogs, setActivityLogs] = useState<AdminActivityLog[]>(initialActivityLogs);
@@ -181,6 +187,8 @@ export function AdminDashboardClient({
   // Article editor state
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [articleBodyText, setArticleBodyText] = useState<string>("");
+  const [articleBlocks, setArticleBlocks] = useState<ArticleContentBlock[]>([]);
+  const [draggedBlockIdx, setDraggedBlockIdx] = useState<number | null>(null);
   const [previewArticle, setPreviewArticle] = useState<Partial<Article> | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState<boolean>(false);
 
@@ -320,6 +328,69 @@ export function AdminDashboardClient({
     }
   }
 
+  function makeBlock(type: ArticleBlockType, text = ""): ArticleContentBlock {
+    return {
+      id: `blk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      text,
+      imageUrl: "",
+      imageCaption: "",
+      secondImageUrl: "",
+      secondImageCaption: "",
+      videoUrl: "",
+      quoteAttribution: "",
+    };
+  }
+
+  function addBlockAt(type: ArticleBlockType, afterIndex?: number) {
+    setArticleBlocks((prev) => {
+      const next = [...prev];
+      const newBlk = makeBlock(type);
+      if (afterIndex === undefined || afterIndex < 0 || afterIndex >= next.length) {
+        next.push(newBlk);
+      } else {
+        next.splice(afterIndex + 1, 0, newBlk);
+      }
+      return next;
+    });
+  }
+
+  function updateBlock(index: number, patch: Partial<ArticleContentBlock>) {
+    setArticleBlocks((prev) =>
+      prev.map((blk, idx) => (idx === index ? { ...blk, ...patch } : blk))
+    );
+  }
+
+  function moveBlock(index: number, direction: -1 | 1) {
+    setArticleBlocks((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  }
+
+  function reorderBlocks(fromIdx: number, toIdx: number) {
+    if (fromIdx === toIdx) return;
+    setArticleBlocks((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }
+
+  function removeBlock(index: number) {
+    setArticleBlocks((prev) => {
+      if (prev.length <= 1) {
+        return [makeBlock("paragraph", "")];
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
+  }
+
   function startNewArticle() {
     setEditingArticle({
       title: "",
@@ -338,11 +409,19 @@ export function AdminDashboardClient({
       seoDescription: "",
     });
     setArticleBodyText("");
+    setArticleBlocks([makeBlock("paragraph", "")]);
   }
 
   function startEditArticle(a: Article) {
     setEditingArticle({ ...a });
     setArticleBodyText((a.body || []).join("\n\n"));
+    if (Array.isArray(a.contentBlocks) && a.contentBlocks.length > 0) {
+      setArticleBlocks(a.contentBlocks.map((b) => ({ ...b })));
+    } else if (Array.isArray(a.body) && a.body.length > 0) {
+      setArticleBlocks(a.body.map((p) => makeBlock("paragraph", p)));
+    } else {
+      setArticleBlocks([makeBlock("paragraph", "")]);
+    }
     if (typeof window !== "undefined") {
       setTimeout(() => {
         document.getElementById("article-editor-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -354,12 +433,41 @@ export function AdminDashboardClient({
     e.preventDefault();
     if (!editingArticle) return;
     try {
+      const cleanedBlocks = articleBlocks.filter((b) => {
+        if (b.type === "paragraph" || b.type === "heading" || b.type === "quote") {
+          return Boolean(b.text && b.text.trim());
+        }
+        if (b.type === "image") return Boolean(b.imageUrl && b.imageUrl.trim());
+        if (b.type === "gallery") {
+          return Boolean(
+            (b.imageUrl && b.imageUrl.trim()) || (b.secondImageUrl && b.secondImageUrl.trim())
+          );
+        }
+        if (b.type === "video") return Boolean(b.videoUrl && b.videoUrl.trim());
+        return false;
+      });
+
+      const extractedParagraphs = cleanedBlocks
+        .filter((b) => b.type === "paragraph" || b.type === "heading" || b.type === "quote")
+        .map((b) => (b.text || "").trim())
+        .filter(Boolean);
+
+      const fallbackParagraphs = articleBodyText
+        .split(/\n\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const finalParagraphs =
+        extractedParagraphs.length > 0
+          ? extractedParagraphs
+          : fallbackParagraphs.length > 0
+          ? fallbackParagraphs
+          : ["Draft paragraph."];
+
       const data = await apiAction("save_article", {
         ...editingArticle,
-        bodyParagraphs: articleBodyText
-          .split(/\n\n+/)
-          .map((p) => p.trim())
-          .filter(Boolean),
+        bodyParagraphs: finalParagraphs,
+        contentBlocks: cleanedBlocks.length > 0 ? cleanedBlocks : undefined,
       });
       setArticles(data.articles);
       setEditingArticle(null);
@@ -676,7 +784,7 @@ export function AdminDashboardClient({
                 ? ([["story-submissions", `8. Story Submissions (${storySubmissions.length})`]] as const)
                 : []),
               ...(hasPerm("contacts")
-                ? ([["contacts", `9. Contact Messages (${contactSubmissions.length})`]] as const)
+                ? ([["contacts", `9. Contacts & Comments (${contactSubmissions.length + comments.length})`]] as const)
                 : []),
               ...(hasPerm("media") ? ([["media", `10. Media Library (${media.length})`]] as const) : []),
               ...(isAdmin ? ([["users", `11. Manage Admins & Roles (${users.length})`]] as const) : []),
@@ -719,7 +827,8 @@ export function AdminDashboardClient({
                     padding: "9px 14px",
                     borderRadius: 8,
                     border: "1px solid var(--border)",
-                    minWidth: 280,
+                    width: "100%",
+                    maxWidth: 320,
                     fontSize: 13.5,
                   }}
                 />
@@ -985,7 +1094,14 @@ export function AdminDashboardClient({
                       onClick={() =>
                         setPreviewArticle({
                           ...editingArticle,
-                          body: articleBodyText.split(/\n\n+/).filter(Boolean),
+                          body: articleBlocks
+                            .filter(
+                              (b) =>
+                                b.type === "paragraph" || b.type === "heading" || b.type === "quote"
+                            )
+                            .map((b) => (b.text || "").trim())
+                            .filter(Boolean),
+                          contentBlocks: articleBlocks,
                         })
                       }
                     >
@@ -1038,14 +1154,587 @@ export function AdminDashboardClient({
                     />
                   </div>
 
-                  <div className="f-row">
-                    <label>Article Body (separate paragraphs with a blank line) *</label>
-                    <textarea
-                      rows={8}
-                      required
-                      value={articleBodyText}
-                      onChange={(e) => setArticleBodyText(e.target.value)}
-                    />
+                  {/* WordPress-Style Visual Block Composer */}
+                  <div
+                    className="card"
+                    style={{
+                      padding: 18,
+                      marginBottom: 18,
+                      background: "var(--ivory-2)",
+                      border: "1.5px solid var(--green)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 10,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div>
+                        <span className="kicker">WordPress-Style Block Editor</span>
+                        <h4 style={{ fontFamily: "var(--serif)", fontSize: 19, margin: "2px 0 0" }}>
+                          Article Content Blocks — Paragraphs, Pictures, 2-Photo Galleries &amp; Quotes
+                        </h4>
+                        <p style={{ fontSize: 12.5, color: "var(--ink-2)", margin: "2px 0 0" }}>
+                          Add paragraphs, insert 1 picture or 2 side-by-side pictures after any paragraph, and drag or use ↑ / ↓ to reorder blocks.
+                        </p>
+                      </div>
+                      <span className="chip" style={{ fontSize: 12 }}>
+                        {articleBlocks.length} {articleBlocks.length === 1 ? "Block" : "Blocks"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {articleBlocks.map((blk, idx) => (
+                        <div
+                          key={blk.id || idx}
+                          draggable
+                          onDragStart={() => setDraggedBlockIdx(idx)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (draggedBlockIdx !== null && draggedBlockIdx !== idx) {
+                              reorderBlocks(draggedBlockIdx, idx);
+                            }
+                            setDraggedBlockIdx(null);
+                          }}
+                          className="card"
+                          style={{
+                            padding: 14,
+                            background: "var(--wh)",
+                            border:
+                              draggedBlockIdx === idx
+                                ? "2px dashed var(--gold)"
+                                : "1px solid var(--border)",
+                          }}
+                        >
+                          {/* Block Header Bar */}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              marginBottom: 10,
+                              paddingBottom: 8,
+                              borderBottom: "1px solid var(--ivory-2)",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span
+                                title="Drag to reorder block"
+                                style={{
+                                  cursor: "grab",
+                                  fontWeight: 700,
+                                  color: "var(--ink-3)",
+                                  padding: "2px 6px",
+                                  background: "var(--ivory-2)",
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                }}
+                              >
+                                ⠿ Block #{idx + 1}
+                              </span>
+                              <select
+                                value={blk.type}
+                                onChange={(e) =>
+                                  updateBlock(idx, { type: e.target.value as ArticleBlockType })
+                                }
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid var(--border)",
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <option value="paragraph">¶ Paragraph Text</option>
+                                <option value="heading">H2 Subheading</option>
+                                <option value="image">🖼 Single Picture (Full Width)</option>
+                                <option value="gallery">🖼🖼 2 Pictures Side-by-Side</option>
+                                <option value="quote">❝ Quote / Highlight</option>
+                                <option value="video">🎬 Inline Video / YouTube</option>
+                              </select>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <button
+                                type="button"
+                                className="chip"
+                                disabled={idx === 0}
+                                onClick={() => moveBlock(idx, -1)}
+                                style={{
+                                  padding: "3px 9px",
+                                  fontSize: 11.5,
+                                  cursor: idx === 0 ? "default" : "pointer",
+                                  opacity: idx === 0 ? 0.45 : 1,
+                                }}
+                                title="Move block up"
+                              >
+                                ↑ Up
+                              </button>
+                              <button
+                                type="button"
+                                className="chip"
+                                disabled={idx === articleBlocks.length - 1}
+                                onClick={() => moveBlock(idx, 1)}
+                                style={{
+                                  padding: "3px 9px",
+                                  fontSize: 11.5,
+                                  cursor: idx === articleBlocks.length - 1 ? "default" : "pointer",
+                                  opacity: idx === articleBlocks.length - 1 ? 0.45 : 1,
+                                }}
+                                title="Move block down"
+                              >
+                                ↓ Down
+                              </button>
+                              <button
+                                type="button"
+                                className="chip"
+                                onClick={() => removeBlock(idx)}
+                                style={{
+                                  padding: "3px 9px",
+                                  fontSize: 11.5,
+                                  color: "#991B1B",
+                                  borderColor: "#FCA5A5",
+                                  cursor: "pointer",
+                                }}
+                                title="Remove block"
+                              >
+                                ✕ Remove
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Block Content Inputs by Type */}
+                          {blk.type === "paragraph" && (
+                            <textarea
+                              rows={4}
+                              placeholder="Write paragraph text here..."
+                              value={blk.text || ""}
+                              onChange={(e) => updateBlock(idx, { text: e.target.value })}
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                borderRadius: 8,
+                                border: "1px solid var(--border)",
+                                font: "inherit",
+                                fontSize: 14,
+                              }}
+                            />
+                          )}
+
+                          {blk.type === "heading" && (
+                            <input
+                              type="text"
+                              placeholder="Enter section subheading (H2)..."
+                              value={blk.text || ""}
+                              onChange={(e) => updateBlock(idx, { text: e.target.value })}
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                borderRadius: 8,
+                                border: "1px solid var(--border)",
+                                fontFamily: "var(--serif)",
+                                fontSize: 18,
+                                fontWeight: 700,
+                              }}
+                            />
+                          )}
+
+                          {blk.type === "quote" && (
+                            <div className="grid-2">
+                              <div>
+                                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                                  Quote Text *
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  placeholder="Enter quotation or key takeaway..."
+                                  value={blk.text || ""}
+                                  onChange={(e) => updateBlock(idx, { text: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px 10px",
+                                    borderRadius: 8,
+                                    border: "1px solid var(--border)",
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                                  Speaker / Attribution (optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Amir, MSSN Lagos Area Unit"
+                                  value={blk.quoteAttribution || ""}
+                                  onChange={(e) => updateBlock(idx, { quoteAttribution: e.target.value })}
+                                  style={{ width: "100%", padding: "8px 10px" }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {blk.type === "image" && (
+                            <div className="grid-2" style={{ alignItems: "start" }}>
+                              <div>
+                                <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--green)", marginBottom: 6 }}>
+                                  Upload Picture from Computer or Paste URL
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,image/gif"
+                                  disabled={uploadingMedia}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) {
+                                      handleUploadFile(f, (url) => {
+                                        updateBlock(idx, { imageUrl: url });
+                                      });
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                  style={{ width: "100%", fontSize: 12, marginBottom: 6 }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Image URL (/uploads/... or https://...)"
+                                  value={blk.imageUrl || ""}
+                                  onChange={(e) => updateBlock(idx, { imageUrl: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12.5, padding: "7px 10px", marginBottom: 6 }}
+                                />
+                                {media.filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url)).length > 0 && (
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      const asset = media.find((m) => m.url === e.target.value);
+                                      updateBlock(idx, {
+                                        imageUrl: e.target.value,
+                                        imageCaption: blk.imageCaption || asset?.caption || "",
+                                      });
+                                    }}
+                                    style={{ width: "100%", fontSize: 12, padding: "6px 10px", marginBottom: 6 }}
+                                  >
+                                    <option value="">— Or choose from Media Library —</option>
+                                    {media
+                                      .filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url))
+                                      .map((m) => (
+                                        <option key={m.id} value={m.url}>
+                                          {m.caption || m.filename}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
+                                <input
+                                  type="text"
+                                  placeholder="Picture caption (optional)"
+                                  value={blk.imageCaption || ""}
+                                  onChange={(e) => updateBlock(idx, { imageCaption: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12.5, padding: "7px 10px" }}
+                                />
+                              </div>
+                              <div>
+                                {blk.imageUrl ? (
+                                  <img
+                                    src={blk.imageUrl}
+                                    alt={blk.imageCaption || "Block preview"}
+                                    style={{
+                                      width: "100%",
+                                      maxHeight: 170,
+                                      objectFit: "cover",
+                                      borderRadius: 8,
+                                      border: "1px solid var(--border)",
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      padding: 24,
+                                      textAlign: "center",
+                                      border: "1px dashed var(--border)",
+                                      borderRadius: 8,
+                                      fontSize: 12.5,
+                                      color: "var(--ink-3)",
+                                    }}
+                                  >
+                                    Picture preview will appear here
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {blk.type === "gallery" && (
+                            <div className="grid-2" style={{ alignItems: "start" }}>
+                              {/* Picture 1 */}
+                              <div className="card" style={{ padding: 12, background: "var(--ivory-2)" }}>
+                                <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--green)", marginBottom: 6 }}>
+                                  Left Picture (#1)
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,image/gif"
+                                  disabled={uploadingMedia}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) {
+                                      handleUploadFile(f, (url) => {
+                                        updateBlock(idx, { imageUrl: url });
+                                      });
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                  style={{ width: "100%", fontSize: 12, marginBottom: 6 }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Picture #1 URL"
+                                  value={blk.imageUrl || ""}
+                                  onChange={(e) => updateBlock(idx, { imageUrl: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", marginBottom: 6 }}
+                                />
+                                {media.filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url)).length > 0 && (
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      const asset = media.find((m) => m.url === e.target.value);
+                                      updateBlock(idx, {
+                                        imageUrl: e.target.value,
+                                        imageCaption: blk.imageCaption || asset?.caption || "",
+                                      });
+                                    }}
+                                    style={{ width: "100%", fontSize: 12, padding: "5px 8px", marginBottom: 6 }}
+                                  >
+                                    <option value="">— Pick Picture #1 from Library —</option>
+                                    {media
+                                      .filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url))
+                                      .map((m) => (
+                                        <option key={m.id} value={m.url}>
+                                          {m.caption || m.filename}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
+                                <input
+                                  type="text"
+                                  placeholder="Caption for Picture #1"
+                                  value={blk.imageCaption || ""}
+                                  onChange={(e) => updateBlock(idx, { imageCaption: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12, padding: "6px 8px" }}
+                                />
+                                {blk.imageUrl && (
+                                  <img
+                                    src={blk.imageUrl}
+                                    alt="Gallery 1"
+                                    style={{
+                                      width: "100%",
+                                      maxHeight: 120,
+                                      objectFit: "cover",
+                                      borderRadius: 6,
+                                      marginTop: 8,
+                                    }}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Picture 2 */}
+                              <div className="card" style={{ padding: 12, background: "var(--ivory-2)" }}>
+                                <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--green)", marginBottom: 6 }}>
+                                  Right Picture (#2)
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,image/gif"
+                                  disabled={uploadingMedia}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) {
+                                      handleUploadFile(f, (url) => {
+                                        updateBlock(idx, { secondImageUrl: url });
+                                      });
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                  style={{ width: "100%", fontSize: 12, marginBottom: 6 }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Picture #2 URL"
+                                  value={blk.secondImageUrl || ""}
+                                  onChange={(e) => updateBlock(idx, { secondImageUrl: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", marginBottom: 6 }}
+                                />
+                                {media.filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url)).length > 0 && (
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      const asset = media.find((m) => m.url === e.target.value);
+                                      updateBlock(idx, {
+                                        secondImageUrl: e.target.value,
+                                        secondImageCaption: blk.secondImageCaption || asset?.caption || "",
+                                      });
+                                    }}
+                                    style={{ width: "100%", fontSize: 12, padding: "5px 8px", marginBottom: 6 }}
+                                  >
+                                    <option value="">— Pick Picture #2 from Library —</option>
+                                    {media
+                                      .filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url))
+                                      .map((m) => (
+                                        <option key={m.id} value={m.url}>
+                                          {m.caption || m.filename}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
+                                <input
+                                  type="text"
+                                  placeholder="Caption for Picture #2"
+                                  value={blk.secondImageCaption || ""}
+                                  onChange={(e) => updateBlock(idx, { secondImageCaption: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12, padding: "6px 8px" }}
+                                />
+                                {blk.secondImageUrl && (
+                                  <img
+                                    src={blk.secondImageUrl}
+                                    alt="Gallery 2"
+                                    style={{
+                                      width: "100%",
+                                      maxHeight: 120,
+                                      objectFit: "cover",
+                                      borderRadius: 6,
+                                      marginTop: 8,
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {blk.type === "video" && (
+                            <div className="grid-2">
+                              <div>
+                                <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--copper)", marginBottom: 6 }}>
+                                  Upload Video Clip or Paste YouTube URL
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                                  disabled={uploadingMedia}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) {
+                                      handleUploadFile(f, (url) => {
+                                        updateBlock(idx, { videoUrl: url });
+                                      });
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                  style={{ width: "100%", fontSize: 12, marginBottom: 6 }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="https://youtube.com/watch?v=... or /uploads/..."
+                                  value={blk.videoUrl || ""}
+                                  onChange={(e) => updateBlock(idx, { videoUrl: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12.5, padding: "7px 10px", marginBottom: 6 }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Video caption (optional)"
+                                  value={blk.imageCaption || ""}
+                                  onChange={(e) => updateBlock(idx, { imageCaption: e.target.value })}
+                                  style={{ width: "100%", fontSize: 12.5, padding: "7px 10px" }}
+                                />
+                              </div>
+                              <div>
+                                {blk.videoUrl ? (
+                                  <div style={{ fontSize: 12.5, color: "var(--green)", fontWeight: 600 }}>
+                                    ✓ Video attached: {blk.videoUrl}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>
+                                    No video selected yet.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quick Insert Toolbar Right Under Each Block */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              alignItems: "center",
+                              marginTop: 10,
+                              paddingTop: 8,
+                              borderTop: "1px dashed var(--border)",
+                            }}
+                          >
+                            <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>
+                              + Insert below this block:
+                            </span>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("paragraph", idx)}
+                            >
+                              + Paragraph
+                            </button>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("heading", idx)}
+                            >
+                              + Subheading
+                            </button>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("image", idx)}
+                            >
+                              + 1 Picture
+                            </button>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("gallery", idx)}
+                            >
+                              + 2 Pictures Side-by-Side
+                            </button>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("quote", idx)}
+                            >
+                              + Quote
+                            </button>
+                            <button
+                              type="button"
+                              className="chip"
+                              style={{ fontSize: 11.5, padding: "3px 9px", cursor: "pointer" }}
+                              onClick={() => addBlockAt("video", idx)}
+                            >
+                              + Video
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="grid-3">
@@ -1180,6 +1869,36 @@ export function AdminDashboardClient({
                           }
                           style={{ width: "100%", fontSize: 12.5, padding: "7px 10px", marginBottom: 8 }}
                         />
+                        {media.filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url)).length > 0 && (
+                          <select
+                            aria-label="Reuse existing image from Media Library"
+                            value=""
+                            onChange={(e) => {
+                              const chosenUrl = e.target.value;
+                              if (!chosenUrl) return;
+                              const chosenAsset = media.find((m) => m.url === chosenUrl);
+                              setEditingArticle({
+                                ...editingArticle,
+                                featuredImage: chosenUrl,
+                                imageCaption:
+                                  editingArticle.imageCaption ||
+                                  (chosenAsset?.caption
+                                    ? `${chosenAsset.caption} (${chosenAsset.credit})`
+                                    : editingArticle.imageCaption),
+                              });
+                            }}
+                            style={{ width: "100%", fontSize: 12, padding: "6px 10px", marginBottom: 8 }}
+                          >
+                            <option value="">— Reuse an existing image from Media Library —</option>
+                            {media
+                              .filter((m) => !/\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url))
+                              .map((m) => (
+                                <option key={m.id} value={m.url}>
+                                  {m.caption || m.filename} ({m.filename})
+                                </option>
+                              ))}
+                          </select>
+                        )}
                         {editingArticle.featuredImage && (
                           <div style={{ marginTop: 6 }}>
                             <img
@@ -1236,6 +1955,30 @@ export function AdminDashboardClient({
                           }
                           style={{ width: "100%", fontSize: 12.5, padding: "7px 10px", marginBottom: 8 }}
                         />
+                        {media.filter((m) => /\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url)).length > 0 && (
+                          <select
+                            aria-label="Reuse existing video from Media Library"
+                            value=""
+                            onChange={(e) => {
+                              const chosenUrl = e.target.value;
+                              if (!chosenUrl) return;
+                              setEditingArticle({
+                                ...editingArticle,
+                                featuredVideo: chosenUrl,
+                              });
+                            }}
+                            style={{ width: "100%", fontSize: 12, padding: "6px 10px", marginBottom: 8 }}
+                          >
+                            <option value="">— Reuse an existing video from Media Library —</option>
+                            {media
+                              .filter((m) => /\.(mp4|webm|ogg|mov|m4v)$/i.test(m.filename || m.url))
+                              .map((m) => (
+                                <option key={m.id} value={m.url}>
+                                  {m.caption || m.filename} ({m.filename})
+                                </option>
+                              ))}
+                          </select>
+                        )}
                         {editingArticle.featuredVideo && (
                           <div style={{ marginTop: 6 }}>
                             {editingArticle.featuredVideo.includes("youtube.com") ||
@@ -1337,11 +2080,84 @@ export function AdminDashboardClient({
                 </div>
                 <h2 style={{ fontFamily: "var(--serif)", fontSize: 28, margin: "0 0 8px" }}>{previewArticle.title}</h2>
                 <p style={{ fontSize: 16, color: "var(--ink-2)", margin: "0 0 16px" }}>{previewArticle.summary}</p>
-                {(previewArticle.body || []).map((p, i) => (
-                  <p key={i} style={{ lineHeight: 1.7 }}>
-                    {p}
-                  </p>
-                ))}
+                {Array.isArray(previewArticle.contentBlocks) && previewArticle.contentBlocks.length > 0
+                  ? previewArticle.contentBlocks.map((b, i) => {
+                      if (b.type === "heading") {
+                        return (
+                          <h3 key={b.id || i} style={{ fontFamily: "var(--serif)", fontSize: 22, margin: "18px 0 8px" }}>
+                            {b.text}
+                          </h3>
+                        );
+                      }
+                      if (b.type === "quote") {
+                        return (
+                          <blockquote
+                            key={b.id || i}
+                            style={{
+                              borderLeft: "4px solid var(--gold)",
+                              paddingLeft: 16,
+                              margin: "16px 0",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            {b.text}
+                            {b.quoteAttribution && (
+                              <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4 }}>
+                                — {b.quoteAttribution}
+                              </div>
+                            )}
+                          </blockquote>
+                        );
+                      }
+                      if (b.type === "image" && b.imageUrl) {
+                        return (
+                          <figure key={b.id || i} style={{ margin: "16px 0" }}>
+                            <img
+                              src={b.imageUrl}
+                              alt={b.imageCaption || "Preview"}
+                              style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 10 }}
+                            />
+                            {b.imageCaption && <figcaption>{b.imageCaption}</figcaption>}
+                          </figure>
+                        );
+                      }
+                      if (b.type === "gallery" && (b.imageUrl || b.secondImageUrl)) {
+                        return (
+                          <div key={b.id || i} className="grid-2" style={{ margin: "16px 0" }}>
+                            {b.imageUrl && (
+                              <figure style={{ margin: 0 }}>
+                                <img
+                                  src={b.imageUrl}
+                                  alt={b.imageCaption || "Photo 1"}
+                                  style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 8 }}
+                                />
+                                {b.imageCaption && <figcaption>{b.imageCaption}</figcaption>}
+                              </figure>
+                            )}
+                            {b.secondImageUrl && (
+                              <figure style={{ margin: 0 }}>
+                                <img
+                                  src={b.secondImageUrl}
+                                  alt={b.secondImageCaption || "Photo 2"}
+                                  style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 8 }}
+                                />
+                                {b.secondImageCaption && <figcaption>{b.secondImageCaption}</figcaption>}
+                              </figure>
+                            )}
+                          </div>
+                        );
+                      }
+                      return b.text ? (
+                        <p key={b.id || i} style={{ lineHeight: 1.7 }}>
+                          {b.text}
+                        </p>
+                      ) : null;
+                    })
+                  : (previewArticle.body || []).map((p, i) => (
+                      <p key={i} style={{ lineHeight: 1.7 }}>
+                        {p}
+                      </p>
+                    ))}
               </div>
             )}
 
@@ -2069,6 +2885,101 @@ export function AdminDashboardClient({
                 ))}
               </div>
             )}
+
+            {/* Reader Comments Moderation Section */}
+            <div style={{ marginTop: 32 }}>
+              <h2 style={{ fontFamily: "var(--serif)", fontSize: 22, margin: "0 0 14px" }}>
+                Public Reader Comments on News Articles ({comments.length})
+              </h2>
+              {comments.length === 0 ? (
+                <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
+                  No reader comments posted yet.
+                </div>
+              ) : (
+                <div className="grid-2">
+                  {comments.map((cmt) => (
+                    <div key={cmt.id} className="card" style={{ padding: 18 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span className="cat-tag">{cmt.articleTitle}</span>
+                        <span
+                          className="chip"
+                          style={{
+                            fontSize: 11.5,
+                            padding: "2px 8px",
+                            background: cmt.status === "Approved" ? "#E8F3EC" : "#FEE2E2",
+                            color: cmt.status === "Approved" ? "#063A19" : "#991B1B",
+                          }}
+                        >
+                          {cmt.status}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 8px" }}>
+                        By <strong>{cmt.authorName}</strong>
+                        {cmt.locationOrCampus ? ` (${cmt.locationOrCampus})` : ""} ·{" "}
+                        {cmt.createdAt ? cmt.createdAt.slice(0, 10) : ""}
+                      </p>
+                      <p style={{ fontSize: 13.5, color: "var(--ink)", margin: "0 0 12px" }}>
+                        {cmt.content}
+                      </p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {cmt.status !== "Approved" && (
+                          <button
+                            type="button"
+                            className="chip"
+                            style={{ fontSize: 11.5, padding: "4px 10px", cursor: "pointer" }}
+                            onClick={async () => {
+                              const data = await apiAction("update_comment_status", {
+                                id: cmt.id,
+                                status: "Approved",
+                              });
+                              setComments(data.comments);
+                              notify("Comment approved and visible on article.");
+                            }}
+                          >
+                            ✓ Approve
+                          </button>
+                        )}
+                        {cmt.status === "Approved" && (
+                          <button
+                            type="button"
+                            className="chip"
+                            style={{ fontSize: 11.5, padding: "4px 10px", cursor: "pointer" }}
+                            onClick={async () => {
+                              const data = await apiAction("update_comment_status", {
+                                id: cmt.id,
+                                status: "Hidden",
+                              });
+                              setComments(data.comments);
+                              notify("Comment hidden from public view.");
+                            }}
+                          >
+                            Hide Comment
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="chip"
+                          style={{
+                            fontSize: 11.5,
+                            padding: "4px 10px",
+                            color: "#991B1B",
+                            borderColor: "#FCA5A5",
+                            cursor: "pointer",
+                          }}
+                          onClick={async () => {
+                            const data = await apiAction("delete_comment", { id: cmt.id });
+                            setComments(data.comments);
+                            notify("Comment deleted.");
+                          }}
+                        >
+                          🗑 Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

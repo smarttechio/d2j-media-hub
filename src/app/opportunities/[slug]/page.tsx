@@ -14,9 +14,26 @@ export async function generateMetadata({
   const { slug } = await params;
   const opp = getPublishedOpportunityBySlug(slug);
   if (!opp) return { title: "Opportunity Not Found" };
+  const canonicalPath = `/opportunities/${opp.slug}`;
   return {
     title: opp.title,
     description: opp.summary,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      title: opp.title,
+      description: opp.summary,
+      url: canonicalPath,
+      type: "article",
+      images: [{ url: "/logo.webp", alt: opp.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: opp.title,
+      description: opp.summary,
+      images: ["/logo.webp"],
+    },
   };
 }
 

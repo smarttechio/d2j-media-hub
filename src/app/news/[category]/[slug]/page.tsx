@@ -6,6 +6,8 @@ import {
   getPublishedArticleBySlug,
   getPublishedArticles,
   getCategoryBySlug,
+  getApprovedCommentsForArticle,
+  ensureDbSynced,
   readDb,
 } from "@/lib/db";
 import {
@@ -15,6 +17,7 @@ import {
 } from "@/components/ArticleCards";
 import { ShareRow } from "@/components/CategoryListingClient";
 import { ArtIllustration } from "@/components/SvgSprite";
+import { ArticleCommentsClient } from "@/components/ArticleCommentsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -33,16 +36,35 @@ export async function generateMetadata({
   const article = getPublishedArticleBySlug(slug);
   if (!article) return { title: "Article Not Found" };
 
+  const canonicalPath = `/news/${article.category}/${article.slug}`;
+  const ogImage = article.featuredImage || "/logo.webp";
+
   return {
     title: article.seoTitle || article.title,
     description: article.seoDescription || article.summary,
+    alternates: {
+      canonical: canonicalPath,
+    },
     openGraph: {
       title: article.seoTitle || article.title,
       description: article.seoDescription || article.summary,
+      url: canonicalPath,
       type: "article",
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
       authors: [article.authorName],
+      images: [
+        {
+          url: ogImage,
+          alt: article.imageCaption || article.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.seoTitle || article.title,
+      description: article.seoDescription || article.summary,
+      images: [ogImage],
     },
   };
 }
@@ -53,6 +75,7 @@ export default async function ArticleDetailPage({
   params: Promise<{ category: string; slug: string }>;
 }) {
   const { slug } = await params;
+  await ensureDbSynced();
   const article = getPublishedArticleBySlug(slug);
   if (!article) notFound();
 
@@ -67,6 +90,9 @@ export default async function ArticleDetailPage({
 
   const db = readDb();
   const authorObj = db.authors.find((a) => a.id === article.authorId);
+  const approvedComments = getApprovedCommentsForArticle(article.id, article.slug).map(
+    ({ authorEmail: _em, ...c }) => c
+  );
 
   const sameCat = getPublishedArticles(article.category).filter(
     (a) => a.slug !== article.slug
@@ -92,7 +118,7 @@ export default async function ArticleDetailPage({
       name: "D-Path to Jannah Media Hub",
       logo: {
         "@type": "ImageObject",
-        url: "https://d2jmediahub.com/logo.webp",
+        url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://d2j-media-hub.vercel.app").replace(/\/+$/, "")}/logo.webp`,
       },
     },
   };
@@ -187,9 +213,117 @@ export default async function ArticleDetailPage({
             )}
           </p>
 
-          {article.body.map((paragraph, idx) => (
-            <p key={idx}>{paragraph}</p>
-          ))}
+          {Array.isArray(article.contentBlocks) && article.contentBlocks.length > 0
+            ? article.contentBlocks.map((block, idx) => {
+                if (block.type === "heading") {
+                  return <h2 key={block.id || idx}>{block.text}</h2>;
+                }
+                if (block.type === "quote") {
+                  return (
+                    <blockquote key={block.id || idx}>
+                      {block.text}
+                      {block.quoteAttribution && <cite>— {block.quoteAttribution}</cite>}
+                    </blockquote>
+                  );
+                }
+                if (block.type === "image" && block.imageUrl) {
+                  return (
+                    <figure
+                      key={block.id || idx}
+                      style={{ margin: "24px 0" }}
+                    >
+                      <img
+                        src={block.imageUrl}
+                        alt={block.imageCaption || article.title}
+                        loading="lazy"
+                        decoding="async"
+                        style={{
+                          width: "100%",
+                          borderRadius: 12,
+                          border: "1px solid var(--bd)",
+                          display: "block",
+                          maxHeight: 520,
+                          objectFit: "cover",
+                        }}
+                      />
+                      {block.imageCaption && (
+                        <figcaption>{block.imageCaption}</figcaption>
+                      )}
+                    </figure>
+                  );
+                }
+                if (block.type === "gallery" && (block.imageUrl || block.secondImageUrl)) {
+                  return (
+                    <div
+                      key={block.id || idx}
+                      className="two"
+                      style={{ margin: "24px 0", alignItems: "start" }}
+                    >
+                      {block.imageUrl && (
+                        <figure style={{ margin: 0 }}>
+                          <img
+                            src={block.imageUrl}
+                            alt={block.imageCaption || `${article.title} — photo 1`}
+                            loading="lazy"
+                            decoding="async"
+                            style={{
+                              width: "100%",
+                              aspectRatio: "4/3",
+                              objectFit: "cover",
+                              borderRadius: 10,
+                              border: "1px solid var(--bd)",
+                              display: "block",
+                            }}
+                          />
+                          {block.imageCaption && (
+                            <figcaption>{block.imageCaption}</figcaption>
+                          )}
+                        </figure>
+                      )}
+                      {block.secondImageUrl && (
+                        <figure style={{ margin: 0 }}>
+                          <img
+                            src={block.secondImageUrl}
+                            alt={block.secondImageCaption || `${article.title} — photo 2`}
+                            loading="lazy"
+                            decoding="async"
+                            style={{
+                              width: "100%",
+                              aspectRatio: "4/3",
+                              objectFit: "cover",
+                              borderRadius: 10,
+                              border: "1px solid var(--bd)",
+                              display: "block",
+                            }}
+                          />
+                          {block.secondImageCaption && (
+                            <figcaption>{block.secondImageCaption}</figcaption>
+                          )}
+                        </figure>
+                      )}
+                    </div>
+                  );
+                }
+                if (block.type === "video" && block.videoUrl) {
+                  return (
+                    <figure key={block.id || idx} style={{ margin: "24px 0" }}>
+                      <div className={`art a-${article.artTheme}`}>
+                        <ArtIllustration
+                          theme={article.artTheme}
+                          featuredVideo={block.videoUrl}
+                          interactiveVideo={true}
+                          label={block.imageCaption || article.title}
+                        />
+                      </div>
+                      {block.imageCaption && (
+                        <figcaption>{block.imageCaption}</figcaption>
+                      )}
+                    </figure>
+                  );
+                }
+                return block.text ? <p key={block.id || idx}>{block.text}</p> : null;
+              })
+            : article.body.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)}
 
           {article.sourceUrl && (
             <p>
@@ -232,6 +366,12 @@ export default async function ArticleDetailPage({
               </p>
             </div>
           </div>
+
+          <ArticleCommentsClient
+            articleId={article.id}
+            articleSlug={article.slug}
+            initialComments={approvedComments}
+          />
         </div>
       </article>
 

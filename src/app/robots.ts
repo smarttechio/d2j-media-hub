@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://d2jmediahub.com';
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://d2j-media-hub.vercel.app').replace(/\/+$/, '');
 
 export default function robots(): MetadataRoute.Robots {
   return {

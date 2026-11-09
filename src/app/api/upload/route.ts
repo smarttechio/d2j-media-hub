@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getCurrentSession } from '@/lib/auth';
-import { readDb, writeDb } from '@/lib/db';
+import { getCurrentSession, hasPermission, canPublishContent } from '@/lib/auth';
+import { ensureDbSynced, writeDbAsync } from '@/lib/db';
+import { uploadToSupabaseStorage } from '@/lib/supabase';
 
 const ALLOWED_IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'];
 const ALLOWED_VIDEO_EXTS = ['mp4', 'webm', 'ogg', 'mov', 'm4v'];
@@ -11,6 +12,12 @@ export async function POST(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
+  }
+  if (!hasPermission(session, 'media') && !canPublishContent(session.role, session.permissions)) {
+    return NextResponse.json(
+      { error: 'Your account does not have permission to upload media assets.' },
+      { status: 403 }
+    );
   }
 
   try {
@@ -56,23 +63,28 @@ export async function POST(req: NextRequest) {
     const finalFilename = `${Date.now()}-${safeBase}.${ext}`;
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const mime =
+      file.type || (isVideo ? `video/${ext === 'mov' ? 'mp4' : ext}` : `image/${ext === 'jpg' ? 'jpeg' : ext}`);
 
-    let publicUrl = `/uploads/${finalFilename}`;
-    try {
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
+    // 1. Prefer durable Supabase Object Storage (`d2j-media` bucket) when configured
+    let publicUrl = await uploadToSupabaseStorage(finalFilename, buffer, mime);
+
+    // 2. Fallback to local `public/uploads` (development) or base64 data URI (serverless fallback)
+    if (!publicUrl) {
+      publicUrl = `/uploads/${finalFilename}`;
+      try {
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(uploadsDir, finalFilename), buffer);
+      } catch {
+        publicUrl = `data:${mime};base64,${buffer.toString('base64')}`;
       }
-      fs.writeFileSync(path.join(uploadsDir, finalFilename), buffer);
-    } catch {
-      // Serverless / read-only filesystem fallback (e.g., Vercel without S3/R2 configured yet)
-      const mime =
-        file.type || (isVideo ? `video/${ext === 'mov' ? 'mp4' : ext}` : `image/${ext === 'jpg' ? 'jpeg' : ext}`);
-      publicUrl = `data:${mime};base64,${buffer.toString('base64')}`;
     }
 
-    // Also register in the Media Library
-    const db = readDb();
+    // 3. Register in the Media Library & persist
+    const db = await ensureDbSynced();
     db.media.unshift({
       id: `med-${Date.now()}`,
       filename: finalFilename,
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
       uploadedAt: new Date().toISOString().slice(0, 10),
       uploadedBy: session.name,
     });
-    writeDb(db);
+    await writeDbAsync(db);
 
     return NextResponse.json({
       ok: true,
