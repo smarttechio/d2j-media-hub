@@ -18,6 +18,10 @@ import {
 import { ShareRow } from "@/components/CategoryListingClient";
 import { ArtIllustration } from "@/components/SvgSprite";
 import { ArticleCommentsClient } from "@/components/ArticleCommentsClient";
+import {
+  ArticlePhotoCarousel,
+  type SliderPhotoItem,
+} from "@/components/FeaturedSliderClient";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +106,37 @@ export default async function ArticleDetailPage({
   );
   const related = [...sameCat, ...otherArts].slice(0, 3);
 
+  const sliderPhotos: SliderPhotoItem[] = [];
+  if (article.featuredImage) {
+    sliderPhotos.push({
+      url: article.featuredImage,
+      caption: article.imageCaption || article.title,
+    });
+  }
+  if (Array.isArray(article.contentBlocks)) {
+    for (const blk of article.contentBlocks) {
+      if (blk.type === "image" && blk.imageUrl) {
+        sliderPhotos.push({
+          url: blk.imageUrl,
+          caption: blk.imageCaption || article.title,
+        });
+      } else if (blk.type === "gallery") {
+        if (blk.imageUrl) {
+          sliderPhotos.push({
+            url: blk.imageUrl,
+            caption: blk.imageCaption || article.title,
+          });
+        }
+        if (blk.secondImageUrl) {
+          sliderPhotos.push({
+            url: blk.secondImageUrl,
+            caption: blk.secondImageCaption || article.title,
+          });
+        }
+      }
+    }
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -118,7 +153,7 @@ export default async function ArticleDetailPage({
       name: "D-Path to Jannah Media Hub",
       logo: {
         "@type": "ImageObject",
-        url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://d2j-media-hub.vercel.app").replace(/\/+$/, "")}/logo.webp`,
+        url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://dpathtojannah.com").replace(/\/+$/, "")}/logo.webp`,
       },
     },
   };
@@ -324,6 +359,10 @@ export default async function ArticleDetailPage({
                 return block.text ? <p key={block.id || idx}>{block.text}</p> : null;
               })
             : article.body.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)}
+
+          {sliderPhotos.length > 1 && (
+            <ArticlePhotoCarousel photos={sliderPhotos} title={article.title} />
+          )}
 
           {article.sourceUrl && (
             <p>

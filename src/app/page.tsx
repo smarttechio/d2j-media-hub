@@ -10,6 +10,7 @@ import {
   OpportunityCard,
   getArticleUrl,
 } from "@/components/ArticleCards";
+import { FeaturedStoriesCarousel } from "@/components/FeaturedSliderClient";
 import { ArtIllustration } from "@/components/SvgSprite";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,9 @@ export default function HomePage() {
   const allArticles = getPublishedArticles();
   const opportunities = getPublishedOpportunities();
 
-  const leadArticle = allArticles[0];
+  const carouselArticles = allArticles.filter((a) => a.featured).length >= 2
+    ? allArticles.filter((a) => a.featured).slice(0, 4)
+    : allArticles.slice(0, 4);
   const heroSideArticles = allArticles.slice(1, 5);
   const campusArticles = getPublishedArticles("campus").slice(0, 5);
   const islamArticles = getPublishedArticles("islam").slice(0, 3);
@@ -77,7 +80,9 @@ export default function HomePage() {
             <Link href="/news">All news</Link>
           </div>
           <div className="chh">
-            {leadArticle && <ArticleCard article={leadArticle} isLead showSummary />}
+            {carouselArticles.length > 0 && (
+              <FeaturedStoriesCarousel articles={carouselArticles} />
+            )}
             <div>
               {heroSideArticles.map((art) => (
                 <SmallArticleCard key={art.id} article={art} />

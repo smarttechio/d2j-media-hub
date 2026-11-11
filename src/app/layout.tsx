@@ -14,6 +14,14 @@ export const metadata: Metadata = {
   },
   description:
     "D-Path to Jannah Media Hub (D2J Media Hub) is a Muslim-centred digital news platform with a special focus on youth and campus life in Nigeria.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo.webp", type: "image/webp" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
   alternates: {
     canonical: "/",
   },
