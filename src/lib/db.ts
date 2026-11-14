@@ -1000,7 +1000,7 @@ const DEFAULT_USERS: User[] = [
   {
     id: "usr-admin",
     name: "D2J Super Administrator",
-    email: process.env.D2J_ADMIN_EMAIL || "admin@d2jmediahub.local",
+    email: process.env.D2J_ADMIN_EMAIL || "lawalsodiq915@gmail.com",
     role: "SUPER_ADMIN",
     title: "Super Administrator",
     passwordHash: hashPassword(process.env.D2J_ADMIN_PASSWORD || "D2J_Admin_Secure_2026!"),
@@ -1151,10 +1151,8 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
       const isSuper = Boolean(u.isSuperAdmin || u.id === "usr-admin" || u.role === "SUPER_ADMIN");
       const effectiveRole: UserRole = isSuper && u.id === "usr-admin" ? "SUPER_ADMIN" : u.role;
       const updatedEmail =
-        u.id === "usr-admin" &&
-        u.email === "admin@d2jmediahub.local" &&
-        process.env.D2J_ADMIN_EMAIL
-          ? process.env.D2J_ADMIN_EMAIL.toLowerCase().trim()
+        u.id === "usr-admin" && u.email === "admin@d2jmediahub.local"
+          ? (process.env.D2J_ADMIN_EMAIL || "lawalsodiq915@gmail.com").toLowerCase().trim()
           : u.email;
       const updatedHash =
         u.id === "usr-admin" &&

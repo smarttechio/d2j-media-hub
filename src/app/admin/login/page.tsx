@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
           </div>
 
           <p style={{ fontSize: 14, color: "var(--ink-2)", margin: "0 0 20px" }}>
-            Authorised Administrators, Editors, Contributors, and Scholar Reviewers may sign in below. Public visitors do not require an account to read articles or submit forms.
+            Sign in with your authorised D-Path to Jannah Media Hub email address and password.
           </p>
 
           {error && (
@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="f-row">
-              <label htmlFor="admin-email">Editorial Email Address</label>
+              <label htmlFor="admin-email">Email Address</label>
               <input
                 id="admin-email"
                 type="email"
@@ -93,7 +93,7 @@ export default function AdminLoginPage() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="editor@d2jmediahub.local"
+                placeholder="admin@dpathtojannah.com"
               />
             </div>
 
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your staff password"
+                placeholder="Enter your password"
               />
             </div>
 
@@ -116,27 +116,19 @@ export default function AdminLoginPage() {
               className="btn btn-primary"
               style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
             >
-              {loading ? "Verifying Credentials..." : "Sign In to Editorial Dashboard"}
+              {loading ? "Signing In..." : "Sign In to Dashboard"}
             </button>
           </form>
 
           <div
             style={{
-              marginTop: 22,
-              paddingTop: 16,
+              marginTop: 20,
+              paddingTop: 14,
               borderTop: "1px solid var(--border)",
-              fontSize: 12.5,
-              color: "var(--ink-3)",
+              fontSize: 13,
+              textAlign: "center",
             }}
           >
-            <strong>Role-Based Access Control (RBAC):</strong>
-            <ul style={{ margin: "6px 0 12px", paddingLeft: 18 }}>
-              <li><strong>Super Administrator:</strong> Add/edit admins, assign granular module access &amp; review all admins&apos; work</li>
-              <li><strong>Administrator:</strong> Platform, editorial workflow &amp; customisable desk management</li>
-              <li><strong>Editor:</strong> Article, Opportunity, Story &amp; Q&amp;A approval and publication</li>
-              <li><strong>Contributor:</strong> Create drafts and submit articles for editorial review</li>
-              <li><strong>Scholar/Reviewer:</strong> Review assigned Islamic questions &amp; draft scholarly answers</li>
-            </ul>
             <Link href="/" style={{ color: "var(--green)", fontWeight: 600 }}>
               ← Return to Public Website
             </Link>
