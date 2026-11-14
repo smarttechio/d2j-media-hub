@@ -8,6 +8,7 @@ import {
   canReviewScholarQuestions,
   canPublishContent,
   hasPermission,
+  createStaffInviteToken,
 } from '@/lib/auth';
 import { ensureDbSynced } from '@/lib/db';
 import { AdminDashboardClient } from './AdminDashboardClient';
@@ -24,7 +25,13 @@ export default async function AdminPage() {
   }
 
   const db = await ensureDbSynced();
-  const safeUsers = db.users.map(({ passwordHash: _ph, ...u }) => u);
+  const safeUsers = db.users.map((fullUser) => {
+    const { passwordHash: _ph, ...u } = fullUser;
+    return {
+      ...u,
+      inviteToken: createStaffInviteToken(fullUser),
+    };
+  });
   const canSeeUsers =
     canManageUsers(session.role, session.permissions) ||
     canReviewOtherAdmins(session.role, session.permissions);

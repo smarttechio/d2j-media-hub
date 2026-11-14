@@ -236,6 +236,7 @@ export function AdminDashboardClient({
     email: string;
     password?: string;
     role: UserRole;
+    inviteToken?: string;
   } | null>(null);
 
   // Admin Review & Oversight Filter State
@@ -330,6 +331,9 @@ export function AdminDashboardClient({
     }
     if (Array.isArray(data.activityLogs)) {
       setActivityLogs(data.activityLogs);
+    }
+    if (typeof window !== "undefined" && data.usersSyncToken) {
+      localStorage.setItem("d2j_users_sync", String(data.usersSyncToken));
     }
     return data;
   }
@@ -3613,6 +3617,24 @@ export function AdminDashboardClient({
                             >
                               Edit Role &amp; Access
                             </button>
+                            {(u as any).inviteToken && (
+                              <button
+                                type="button"
+                                className="chip"
+                                style={{ padding: "4px 10px", fontSize: 11.5, cursor: "pointer" }}
+                                onClick={() => {
+                                  const base =
+                                    typeof window !== "undefined"
+                                      ? `${window.location.origin}/admin/login`
+                                      : "/admin/login";
+                                  const link = `${base}?email=${encodeURIComponent(u.email)}&team=${(u as any).inviteToken}`;
+                                  navigator.clipboard?.writeText(link);
+                                  notify(`Copied staff login link for ${u.name}!`);
+                                }}
+                              >
+                                📋 Copy Login Link
+                              </button>
+                            )}
                             {isSuperAdmin && u.id !== "usr-admin" && u.id !== session.userId && (
                               <button
                                 type="button"
@@ -3704,9 +3726,15 @@ export function AdminDashboardClient({
                     </div>
                     <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--ink)", marginBottom: 10 }}>
                       <div>
-                        <strong>Login Page:</strong>{" "}
-                        <code>
-                          {typeof window !== "undefined" ? `${window.location.origin}/admin/login` : "/admin/login"}
+                        <strong>Login Link (Send this link to the staff member):</strong>{" "}
+                        <code style={{ wordBreak: "break-all" }}>
+                          {typeof window !== "undefined"
+                            ? `${window.location.origin}/admin/login${
+                                lastSavedCredentials.inviteToken
+                                  ? `?email=${encodeURIComponent(lastSavedCredentials.email)}&team=${lastSavedCredentials.inviteToken}`
+                                  : ""
+                              }`
+                            : "/admin/login"}
                         </code>
                       </div>
                       <div>
@@ -3725,13 +3753,16 @@ export function AdminDashboardClient({
                       className="btn btn-primary"
                       style={{ padding: "5px 12px", fontSize: 12 }}
                       onClick={() => {
-                        const loginUrl =
+                        const baseLoginUrl =
                           typeof window !== "undefined"
                             ? `${window.location.origin}/admin/login`
                             : "/admin/login";
-                        const text = `D2J Media Hub Staff Login\nLogin URL: ${loginUrl}\nEmail: ${lastSavedCredentials.email}\nPassword: ${lastSavedCredentials.password || "(your existing password)"}\nRole: ${lastSavedCredentials.role}`;
+                        const loginUrl = lastSavedCredentials.inviteToken
+                          ? `${baseLoginUrl}?email=${encodeURIComponent(lastSavedCredentials.email)}&team=${lastSavedCredentials.inviteToken}`
+                          : baseLoginUrl;
+                        const text = `D2J Media Hub Staff Login\nLogin Link: ${loginUrl}\nEmail: ${lastSavedCredentials.email}\nPassword: ${lastSavedCredentials.password || "(your existing password)"}\nRole: ${lastSavedCredentials.role}`;
                         navigator.clipboard?.writeText(text);
-                        notify("Copied login details to clipboard!");
+                        notify("Copied login link & details to clipboard!");
                       }}
                     >
                       📋 Copy Login Details to Send to Staff
@@ -3764,6 +3795,7 @@ export function AdminDashboardClient({
                       email: savedEmail,
                       password: savedPass || undefined,
                       role: savedRole,
+                      inviteToken: data.inviteToken,
                     });
                     setEditingUserId(null);
                     setNewUserName("");

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -8,23 +8,47 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get("team") || params.get("invite") || "";
+      const em = params.get("email") || "";
+      if (t) setInviteToken(t);
+      if (em) setEmail(em);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      const usersSyncToken =
+        typeof window !== "undefined" ? localStorage.getItem("d2j_users_sync") || undefined : undefined;
       const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", payload: { email, password } }),
+        body: JSON.stringify({
+          action: "login",
+          payload: {
+            email,
+            password,
+            inviteToken: inviteToken || undefined,
+            usersSyncToken,
+          },
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Sign-in failed. Check your editorial credentials.");
       } else {
+        if (typeof window !== "undefined" && data.usersSyncToken) {
+          localStorage.setItem("d2j_users_sync", data.usersSyncToken);
+        }
         router.push("/admin");
         router.refresh();
       }

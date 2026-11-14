@@ -999,14 +999,26 @@ const DEFAULT_QAS: ScholarQuestion[] = [
 const DEFAULT_USERS: User[] = [
   {
     id: "usr-admin",
-    name: "D2J Super Administrator",
-    email: process.env.D2J_ADMIN_EMAIL || "lawalsodiq915@gmail.com",
+    name: "D-Path to Jannah Super Admin",
+    email: process.env.D2J_ADMIN_EMAIL || "admin@dpathtojannah.com",
     role: "SUPER_ADMIN",
     title: "Super Administrator",
-    passwordHash: hashPassword(process.env.D2J_ADMIN_PASSWORD || "D2J_Admin_Secure_2026!"),
+    passwordHash: hashPassword(process.env.D2J_ADMIN_PASSWORD || "Dpath1Admin2026!"),
     active: true,
     isSuperAdmin: true,
     permissions: getDefaultPermissionsForRole("SUPER_ADMIN"),
+    allowedCategories: ["ALL"],
+  },
+  {
+    id: "usr-sodiq",
+    name: "Sodiq Lawal",
+    email: "lawalsodiq915@gmail.com",
+    role: "ADMINISTRATOR",
+    title: "Managing Editor",
+    passwordHash: hashPassword("Dpath1Admin2026!"),
+    active: true,
+    isSuperAdmin: false,
+    permissions: getDefaultPermissionsForRole("ADMINISTRATOR"),
     allowedCategories: ["ALL"],
   },
   {
@@ -1146,19 +1158,18 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
     }
   }
   if (Array.isArray(parsed.users)) {
-    const defaultAdminHash = hashPassword("D2J_Admin_Secure_2026!");
+    const oldAdminHash = hashPassword("D2J_Admin_Secure_2026!");
     parsed.users = parsed.users.map((u) => {
       const isSuper = Boolean(u.isSuperAdmin || u.id === "usr-admin" || u.role === "SUPER_ADMIN");
       const effectiveRole: UserRole = isSuper && u.id === "usr-admin" ? "SUPER_ADMIN" : u.role;
       const updatedEmail =
-        u.id === "usr-admin" && u.email === "admin@d2jmediahub.local"
-          ? (process.env.D2J_ADMIN_EMAIL || "lawalsodiq915@gmail.com").toLowerCase().trim()
+        u.id === "usr-admin" &&
+        (u.email === "admin@d2jmediahub.local" || u.email === "lawalsodiq915@gmail.com")
+          ? (process.env.D2J_ADMIN_EMAIL || "admin@dpathtojannah.com").toLowerCase().trim()
           : u.email;
       const updatedHash =
-        u.id === "usr-admin" &&
-        u.passwordHash === defaultAdminHash &&
-        process.env.D2J_ADMIN_PASSWORD
-          ? hashPassword(process.env.D2J_ADMIN_PASSWORD)
+        u.id === "usr-admin" && u.passwordHash === oldAdminHash
+          ? hashPassword(process.env.D2J_ADMIN_PASSWORD || "Dpath1Admin2026!")
           : u.passwordHash;
       return {
         ...u,
@@ -1176,6 +1187,13 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
             : ["ALL"],
       };
     });
+    const sodiqSeed = DEFAULT_USERS.find((u) => u.id === "usr-sodiq");
+    if (
+      sodiqSeed &&
+      !parsed.users.some((u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com")
+    ) {
+      parsed.users.splice(1, 0, sodiqSeed);
+    }
   }
   if (!Array.isArray(parsed.activityLogs)) {
     parsed.activityLogs = DEFAULT_ACTIVITY_LOGS;

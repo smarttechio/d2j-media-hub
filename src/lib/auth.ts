@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import {
   ensureDbSynced,
+  writeDbAsync,
   User,
   UserRole,
   DashboardPermission,
@@ -20,6 +21,7 @@ function getSessionSecret(): string {
 }
 
 export const SESSION_COOKIE_NAME = "d2j_editorial_session";
+export const STAFF_REGISTRY_COOKIE = "d2j_staff_registry";
 
 export interface SessionPayload {
   userId: string;
@@ -50,7 +52,7 @@ export function createSessionToken(user: User): string {
       Array.isArray(user.allowedCategories) && user.allowedCategories.length > 0
         ? user.allowedCategories
         : ["ALL"],
-    exp: Date.now() + 1000 * 60 * 60 * 12, // 12 hours
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
   };
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
@@ -76,22 +78,126 @@ export function verifySessionToken(token?: string): SessionPayload | null {
   }
 }
 
+export function createSignedUsersToken(users: User[]): string {
+  const data = Buffer.from(JSON.stringify(users)).toString("base64url");
+  const sig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}
+
+export function verifySignedUsersToken(token?: string): User[] | null {
+  if (!token || !token.includes(".")) return null;
+  const [data, sig] = token.split(".");
+  if (!data || !sig) return null;
+  const expectedSig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    return Array.isArray(parsed) ? (parsed as User[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function createStaffInviteToken(user: User): string {
+  const data = Buffer.from(JSON.stringify(user)).toString("base64url");
+  const sig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}
+
+export function verifyStaffInviteToken(token?: string): User | null {
+  if (!token || !token.includes(".")) return null;
+  const [data, sig] = token.split(".");
+  if (!data || !sig) return null;
+  const expectedSig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    return parsed && typeof parsed.email === "string" ? (parsed as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function mergeVerifiedUsersIntoList(
+  existingUsers: User[],
+  registryCookie?: string,
+  inviteToken?: string
+): { users: User[]; changed: boolean } {
+  const merged = [...existingUsers];
+  let changed = false;
+
+  const upsert = (incoming: User) => {
+    if (!incoming || !incoming.email) return;
+    const idx = merged.findIndex(
+      (u) =>
+        u.id === incoming.id ||
+        u.email.toLowerCase().trim() === incoming.email.toLowerCase().trim()
+    );
+    if (idx >= 0) {
+      const curr = merged[idx];
+      if (
+        curr.name !== incoming.name ||
+        curr.email !== incoming.email ||
+        curr.passwordHash !== incoming.passwordHash ||
+        curr.role !== incoming.role ||
+        curr.active !== incoming.active
+      ) {
+        merged[idx] = { ...curr, ...incoming };
+        changed = true;
+      }
+    } else {
+      merged.push(incoming);
+      changed = true;
+    }
+  };
+
+  const registryUsers = verifySignedUsersToken(registryCookie);
+  if (registryUsers) {
+    for (const u of registryUsers) upsert(u);
+  }
+
+  const invitedUser = verifyStaffInviteToken(inviteToken);
+  if (invitedUser) {
+    upsert(invitedUser);
+  }
+
+  return { users: merged, changed };
+}
+
 export async function getCurrentSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   const session = verifySessionToken(token);
   if (!session) return null;
-  // Confirm user still active in DB and sync latest role & permissions assigned by Super Admin
+
   const db = await ensureDbSynced();
-  const user = db.users.find(
-    (u) => u.id === session.userId || u.email.toLowerCase() === session.email.toLowerCase()
-  );
+  const registryCookie = cookieStore.get(STAFF_REGISTRY_COOKIE)?.value;
+  const { users, changed } = mergeVerifiedUsersIntoList(db.users, registryCookie);
+  if (changed) {
+    db.users = users;
+    await writeDbAsync(db);
+  }
+
+  // Match by exact email first so admin@dpathtojannah.com and lawalsodiq915@gmail.com never collide
+  const user =
+    db.users.find((u) => u.email.toLowerCase().trim() === session.email.toLowerCase().trim()) ||
+    db.users.find((u) => u.id === session.userId);
+
   if (user) {
     if (!user.active) return null;
     const isSuper = Boolean(user.isSuperAdmin || user.role === "SUPER_ADMIN" || user.id === "usr-admin");
     return {
       ...session,
+      userId: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -107,6 +213,7 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
           : ["ALL"],
     };
   }
+
   // If this serverless container has a cold cache that doesn't have the newly created user yet,
   // honour the cryptographically verified HMAC session token so newly created users are never kicked out.
   return {
