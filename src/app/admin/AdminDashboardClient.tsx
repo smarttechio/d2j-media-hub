@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type {
@@ -274,6 +274,33 @@ export function AdminDashboardClient({
     setToast({ type, text });
     setTimeout(() => setToast(null), 4000);
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || cancelled) return;
+        if (Array.isArray(data.articles)) setArticles(data.articles);
+        if (Array.isArray(data.categories)) setCategories(data.categories);
+        if (Array.isArray(data.authors)) setAuthors(data.authors);
+        if (Array.isArray(data.opportunities)) setOpportunities(data.opportunities);
+        if (Array.isArray(data.scholarQuestions)) setScholarQuestions(data.scholarQuestions);
+        if (Array.isArray(data.storySubmissions)) setStorySubmissions(data.storySubmissions);
+        if (Array.isArray(data.contactSubmissions)) setContactSubmissions(data.contactSubmissions);
+        if (Array.isArray(data.comments)) setComments(data.comments);
+        if (Array.isArray(data.media)) setMedia(data.media);
+        if (Array.isArray(data.users) && data.users.length > 0) setUsers(data.users);
+        if (Array.isArray(data.activityLogs)) setActivityLogs(data.activityLogs);
+        if (data.settings) setSettings(data.settings);
+      })
+      .catch(() => {
+        // Keep initial server props if background sync fails
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function apiAction(action: string, payload: Record<string, unknown>) {
     const res = await fetch("/api/admin", {

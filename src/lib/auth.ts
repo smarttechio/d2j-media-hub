@@ -84,23 +84,40 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
   if (!session) return null;
   // Confirm user still active in DB and sync latest role & permissions assigned by Super Admin
   const db = await ensureDbSynced();
-  const user = db.users.find((u) => u.id === session.userId && u.active);
-  if (!user) return null;
-  const isSuper = Boolean(user.isSuperAdmin || user.role === "SUPER_ADMIN" || user.id === "usr-admin");
+  const user = db.users.find(
+    (u) => u.id === session.userId || u.email.toLowerCase() === session.email.toLowerCase()
+  );
+  if (user) {
+    if (!user.active) return null;
+    const isSuper = Boolean(user.isSuperAdmin || user.role === "SUPER_ADMIN" || user.id === "usr-admin");
+    return {
+      ...session,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      title: user.title,
+      isSuperAdmin: isSuper,
+      permissions:
+        Array.isArray(user.permissions) && user.permissions.length > 0
+          ? user.permissions
+          : getDefaultPermissionsForRole(user.role),
+      allowedCategories:
+        Array.isArray(user.allowedCategories) && user.allowedCategories.length > 0
+          ? user.allowedCategories
+          : ["ALL"],
+    };
+  }
+  // If this serverless container has a cold cache that doesn't have the newly created user yet,
+  // honour the cryptographically verified HMAC session token so newly created users are never kicked out.
   return {
     ...session,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    title: user.title,
-    isSuperAdmin: isSuper,
     permissions:
-      Array.isArray(user.permissions) && user.permissions.length > 0
-        ? user.permissions
-        : getDefaultPermissionsForRole(user.role),
+      Array.isArray(session.permissions) && session.permissions.length > 0
+        ? session.permissions
+        : getDefaultPermissionsForRole(session.role),
     allowedCategories:
-      Array.isArray(user.allowedCategories) && user.allowedCategories.length > 0
-        ? user.allowedCategories
+      Array.isArray(session.allowedCategories) && session.allowedCategories.length > 0
+        ? session.allowedCategories
         : ["ALL"],
   };
 }
