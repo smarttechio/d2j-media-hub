@@ -154,10 +154,7 @@ export async function POST(req: NextRequest) {
           (u.id === 'usr-admin' && SUPER_ADMIN_EMAIL_ALIASES.has(email));
         if (!emailMatches) return false;
         if (u.passwordHash === passwordHash) return true;
-        if (
-          (u.id === 'usr-admin' || u.id === 'usr-sodiq') &&
-          FALLBACK_ADMIN_PASSWORD_HASHES.has(passwordHash)
-        ) {
+        if (u.id === 'usr-admin' && FALLBACK_ADMIN_PASSWORD_HASHES.has(passwordHash)) {
           return true;
         }
         return false;

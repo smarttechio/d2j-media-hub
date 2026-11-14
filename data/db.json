@@ -956,7 +956,7 @@
       "email": "lawalsodiq915@gmail.com",
       "role": "ADMINISTRATOR",
       "title": "Managing Editor",
-      "passwordHash": "20f7fca29c9960ea2305d3d2982bcdc066a38e7ff60409c84f5328421348dcee",
+      "passwordHash": "5329a5cb2b478864be50c7aa8201db3d3a5fb7612c52ec21ca954d33f5809eea",
       "active": true,
       "isSuperAdmin": false,
       "permissions": [
@@ -972,6 +972,32 @@
         "contacts",
         "media",
         "settings"
+      ],
+      "allowedCategories": [
+        "ALL"
+      ]
+    },
+    {
+      "id": "usr-khaleel",
+      "name": "Khaleel Tasnan",
+      "email": "khaleeltasnan@gmail.com",
+      "role": "EDITOR",
+      "title": "Editorial Desk",
+      "passwordHash": "d1dfa9ac63fd3bcc110f695ea6faa022b33ed73f81d0bf61ef8c8ce37c58b6f8",
+      "active": true,
+      "isSuperAdmin": false,
+      "permissions": [
+        "overview",
+        "articles",
+        "publish_articles",
+        "categories",
+        "authors",
+        "opportunities",
+        "ask-scholar",
+        "approved-answers",
+        "story-submissions",
+        "contacts",
+        "media"
       ],
       "allowedCategories": [
         "ALL"

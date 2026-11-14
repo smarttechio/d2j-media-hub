@@ -1015,10 +1015,22 @@ const DEFAULT_USERS: User[] = [
     email: "lawalsodiq915@gmail.com",
     role: "ADMINISTRATOR",
     title: "Managing Editor",
-    passwordHash: hashPassword("Dpath1Admin2026!"),
+    passwordHash: hashPassword("Sodiq1995!"),
     active: true,
     isSuperAdmin: false,
     permissions: getDefaultPermissionsForRole("ADMINISTRATOR"),
+    allowedCategories: ["ALL"],
+  },
+  {
+    id: "usr-khaleel",
+    name: "Khaleel Tasnan",
+    email: "khaleeltasnan@gmail.com",
+    role: "EDITOR",
+    title: "Editorial Desk",
+    passwordHash: hashPassword("Dpath001Admin2026!"),
+    active: true,
+    isSuperAdmin: false,
+    permissions: getDefaultPermissionsForRole("EDITOR"),
     allowedCategories: ["ALL"],
   },
   {
@@ -1188,11 +1200,22 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
       };
     });
     const sodiqSeed = DEFAULT_USERS.find((u) => u.id === "usr-sodiq");
+    if (sodiqSeed) {
+      const existingSodiq = parsed.users.find(
+        (u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com"
+      );
+      if (!existingSodiq) {
+        parsed.users.splice(1, 0, sodiqSeed);
+      } else if (existingSodiq.passwordHash === hashPassword("Dpath1Admin2026!")) {
+        existingSodiq.passwordHash = hashPassword("Sodiq1995!");
+      }
+    }
+    const khaleelSeed = DEFAULT_USERS.find((u) => u.id === "usr-khaleel");
     if (
-      sodiqSeed &&
-      !parsed.users.some((u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com")
+      khaleelSeed &&
+      !parsed.users.some((u) => u.email.toLowerCase() === "khaleeltasnan@gmail.com")
     ) {
-      parsed.users.splice(1, 0, sodiqSeed);
+      parsed.users.splice(2, 0, khaleelSeed);
     }
   }
   if (!Array.isArray(parsed.activityLogs)) {
