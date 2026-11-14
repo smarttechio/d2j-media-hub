@@ -3964,7 +3964,7 @@ export function AdminDashboardClient({
                         <label style={{ margin: 0 }}>
                           {editingUserId
                             ? "New Password (leave blank to keep current)"
-                            : "Create Password for This Person (min 8 chars) *"}
+                            : "Create Password for This Person *"}
                         </label>
                         <button
                           type="button"
@@ -3984,8 +3984,7 @@ export function AdminDashboardClient({
                       <input
                         type={showUserPassword ? "text" : "password"}
                         required={!editingUserId}
-                        minLength={8}
-                        placeholder={editingUserId ? "Leave blank to keep unchanged" : "Min 8 characters"}
+                        placeholder={editingUserId ? "Leave blank to keep unchanged" : "Enter password for this account"}
                         value={newUserPassword}
                         onChange={(e) => setNewUserPassword(e.target.value)}
                       />

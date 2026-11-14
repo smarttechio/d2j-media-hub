@@ -21,8 +21,16 @@ import {
   canManageUsers,
   canReviewOtherAdmins,
   canReviewScholarQuestions,
+  createSessionToken,
+  SESSION_COOKIE_NAME,
   SessionPayload,
 } from '@/lib/auth';
+
+const SUPER_ADMIN_EMAIL_ALIASES = new Set([
+  'lawalsodiq915@gmail.com',
+  'admin@dpathtojannah.com',
+  'admin@d2jmediahub.local',
+]);
 
 function slugify(input: string): string {
   return input
@@ -94,15 +102,72 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
     const { action, payload } = body;
     const db = await ensureDbSynced();
+
+    // 0. UNIFIED LOGIN ACTION (shares same serverless instance as save_user)
+    if (action === 'login') {
+      const email = String(payload?.email || body.email || '').trim().toLowerCase();
+      const password = String(payload?.password || body.password || '').trim();
+
+      if (!email || !password) {
+        return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
+      }
+
+      const passwordHash = hashPassword(password);
+      const user = db.users.find((u) => {
+        if (!u.active) return false;
+        const emailMatches =
+          u.email.toLowerCase().trim() === email ||
+          (u.id === 'usr-admin' && SUPER_ADMIN_EMAIL_ALIASES.has(email));
+        return emailMatches && u.passwordHash === passwordHash;
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Invalid email or password. Please check your credentials and try again.' },
+          { status: 401 }
+        );
+      }
+
+      if (user.id === 'usr-admin' && email !== 'admin@d2jmediahub.local') {
+        user.email = email;
+      }
+
+      user.lastLoginAt = new Date().toISOString();
+      await writeDbAsync(db);
+
+      const token = createSessionToken(user);
+      const res = NextResponse.json({
+        ok: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          title: user.title,
+          isSuperAdmin: user.isSuperAdmin,
+          permissions: user.permissions,
+        },
+      });
+
+      res.cookies.set(SESSION_COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 12,
+      });
+
+      return res;
+    }
+
+    const session = await getCurrentSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
+    }
 
     // 1. CREATE OR UPDATE ARTICLE
     if (action === 'save_article') {
@@ -944,7 +1009,7 @@ export async function POST(req: NextRequest) {
         if (Array.isArray(allowedCategories) && allowedCategories.length > 0) {
           existing.allowedCategories = allowedCategories;
         }
-        if (password && password.trim().length >= 8) {
+        if (password && password.trim().length > 0) {
           existing.passwordHash = hashPassword(password.trim());
         }
 
@@ -985,7 +1050,9 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           role: effectiveRole,
           title: String(title || 'Staff Member'),
-          passwordHash: hashPassword(password || 'D2J_TempPass_2026!'),
+          passwordHash: hashPassword(
+            password && password.trim() ? password.trim() : 'D2J_TempPass_2026!'
+          ),
           active: active !== false,
           isSuperAdmin: effectiveRole === 'SUPER_ADMIN',
           permissions: effectivePerms,
