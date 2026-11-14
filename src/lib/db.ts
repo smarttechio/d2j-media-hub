@@ -1023,10 +1023,10 @@ const DEFAULT_USERS: User[] = [
   },
   {
     id: "usr-khaleel",
-    name: "Khaleel Tasnan",
+    name: "Ibraheem Mogaji",
     email: "khaleeltasnan@gmail.com",
     role: "EDITOR",
-    title: "Editorial Desk",
+    title: "Editor",
     passwordHash: hashPassword("Dpath001Admin2026!"),
     active: true,
     isSuperAdmin: false,
@@ -1202,20 +1202,33 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
     const sodiqSeed = DEFAULT_USERS.find((u) => u.id === "usr-sodiq");
     if (sodiqSeed) {
       const existingSodiq = parsed.users.find(
-        (u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com"
+        (u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com" || u.id === "usr-sodiq"
       );
       if (!existingSodiq) {
-        parsed.users.splice(1, 0, sodiqSeed);
-      } else if (existingSodiq.passwordHash === hashPassword("Dpath1Admin2026!")) {
+        parsed.users.splice(1, 0, { ...sodiqSeed });
+      } else {
+        existingSodiq.name = "Sodiq Lawal";
+        existingSodiq.email = "lawalsodiq915@gmail.com";
+        existingSodiq.role = "ADMINISTRATOR";
         existingSodiq.passwordHash = hashPassword("Sodiq1995!");
+        existingSodiq.active = true;
       }
     }
     const khaleelSeed = DEFAULT_USERS.find((u) => u.id === "usr-khaleel");
-    if (
-      khaleelSeed &&
-      !parsed.users.some((u) => u.email.toLowerCase() === "khaleeltasnan@gmail.com")
-    ) {
-      parsed.users.splice(2, 0, khaleelSeed);
+    if (khaleelSeed) {
+      const existingKhaleel = parsed.users.find(
+        (u) => u.email.toLowerCase() === "khaleeltasnan@gmail.com" || u.id === "usr-khaleel"
+      );
+      if (!existingKhaleel) {
+        parsed.users.splice(2, 0, { ...khaleelSeed });
+      } else {
+        existingKhaleel.name = "Ibraheem Mogaji";
+        existingKhaleel.email = "khaleeltasnan@gmail.com";
+        existingKhaleel.role = "EDITOR";
+        existingKhaleel.title = "Editor";
+        existingKhaleel.passwordHash = hashPassword("Dpath001Admin2026!");
+        existingKhaleel.active = true;
+      }
     }
   }
   if (!Array.isArray(parsed.activityLogs)) {

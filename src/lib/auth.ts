@@ -126,6 +126,21 @@ export function verifyStaffInviteToken(token?: string): User | null {
   }
 }
 
+const PROTECTED_BUILTIN_IDS = new Set([
+  "usr-admin",
+  "usr-sodiq",
+  "usr-khaleel",
+  "usr-editor",
+  "usr-contrib",
+  "usr-scholar",
+]);
+
+const PROTECTED_BUILTIN_EMAILS = new Set([
+  "admin@dpathtojannah.com",
+  "lawalsodiq915@gmail.com",
+  "khaleeltasnan@gmail.com",
+]);
+
 export function mergeVerifiedUsersIntoList(
   existingUsers: User[],
   registryCookie?: string,
@@ -136,13 +151,21 @@ export function mergeVerifiedUsersIntoList(
 
   const upsert = (incoming: User) => {
     if (!incoming || !incoming.email) return;
+    const cleanIncomingEmail = incoming.email.toLowerCase().trim();
     const idx = merged.findIndex(
       (u) =>
         u.id === incoming.id ||
-        u.email.toLowerCase().trim() === incoming.email.toLowerCase().trim()
+        u.email.toLowerCase().trim() === cleanIncomingEmail
     );
     if (idx >= 0) {
       const curr = merged[idx];
+      // Never overwrite built-in accounts from a potentially older browser cookie
+      if (
+        PROTECTED_BUILTIN_IDS.has(curr.id) ||
+        PROTECTED_BUILTIN_EMAILS.has(curr.email.toLowerCase().trim())
+      ) {
+        return;
+      }
       if (
         curr.name !== incoming.name ||
         curr.email !== incoming.email ||

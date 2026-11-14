@@ -979,10 +979,10 @@
     },
     {
       "id": "usr-khaleel",
-      "name": "Khaleel Tasnan",
+      "name": "Ibraheem Mogaji",
       "email": "khaleeltasnan@gmail.com",
       "role": "EDITOR",
-      "title": "Editorial Desk",
+      "title": "Editor",
       "passwordHash": "d1dfa9ac63fd3bcc110f695ea6faa022b33ed73f81d0bf61ef8c8ce37c58b6f8",
       "active": true,
       "isSuperAdmin": false,
