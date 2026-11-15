@@ -1022,6 +1022,42 @@ const DEFAULT_USERS: User[] = [
     allowedCategories: ["ALL"],
   },
   {
+    id: "usr-yahaya",
+    name: "Mr. Yahaya Badru",
+    email: "abiodunbadru4u@gmail.com",
+    role: "ADMINISTRATOR",
+    title: "Managing Editor",
+    passwordHash: hashPassword("Dpath002Admin2026!"),
+    active: true,
+    isSuperAdmin: false,
+    permissions: getDefaultPermissionsForRole("ADMINISTRATOR"),
+    allowedCategories: ["ALL"],
+  },
+  {
+    id: "usr-qudus",
+    name: "Qudus Ojomo",
+    email: "ojomoabiola@gmail.com",
+    role: "ADMINISTRATOR",
+    title: "Managing Editor",
+    passwordHash: hashPassword("Dpath003Admin2026!"),
+    active: true,
+    isSuperAdmin: false,
+    permissions: getDefaultPermissionsForRole("ADMINISTRATOR"),
+    allowedCategories: ["ALL"],
+  },
+  {
+    id: "usr-habeeb",
+    name: "Habeeb Gidado",
+    email: "gidadohabib1@gmail.com",
+    role: "ADMINISTRATOR",
+    title: "Managing Editor",
+    passwordHash: hashPassword("Dpath003Admin2026!"),
+    active: true,
+    isSuperAdmin: false,
+    permissions: getDefaultPermissionsForRole("ADMINISTRATOR"),
+    allowedCategories: ["ALL"],
+  },
+  {
     id: "usr-khaleel",
     name: "Ibraheem Mogaji",
     email: "khaleeltasnan@gmail.com",
@@ -1199,35 +1235,24 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
             : ["ALL"],
       };
     });
-    const sodiqSeed = DEFAULT_USERS.find((u) => u.id === "usr-sodiq");
-    if (sodiqSeed) {
-      const existingSodiq = parsed.users.find(
-        (u) => u.email.toLowerCase() === "lawalsodiq915@gmail.com" || u.id === "usr-sodiq"
+    const requiredStaffIds = ["usr-sodiq", "usr-yahaya", "usr-qudus", "usr-habeeb", "usr-khaleel"];
+    for (const staffId of requiredStaffIds) {
+      const seedUser = DEFAULT_USERS.find((u) => u.id === staffId);
+      if (!seedUser) continue;
+      const existing = parsed.users.find(
+        (u) => u.email.toLowerCase() === seedUser.email.toLowerCase() || u.id === seedUser.id
       );
-      if (!existingSodiq) {
-        parsed.users.splice(1, 0, { ...sodiqSeed });
+      if (!existing) {
+        parsed.users.push({ ...seedUser });
       } else {
-        existingSodiq.name = "Sodiq Lawal";
-        existingSodiq.email = "lawalsodiq915@gmail.com";
-        existingSodiq.role = "ADMINISTRATOR";
-        existingSodiq.passwordHash = hashPassword("Sodiq1995!");
-        existingSodiq.active = true;
-      }
-    }
-    const khaleelSeed = DEFAULT_USERS.find((u) => u.id === "usr-khaleel");
-    if (khaleelSeed) {
-      const existingKhaleel = parsed.users.find(
-        (u) => u.email.toLowerCase() === "khaleeltasnan@gmail.com" || u.id === "usr-khaleel"
-      );
-      if (!existingKhaleel) {
-        parsed.users.splice(2, 0, { ...khaleelSeed });
-      } else {
-        existingKhaleel.name = "Ibraheem Mogaji";
-        existingKhaleel.email = "khaleeltasnan@gmail.com";
-        existingKhaleel.role = "EDITOR";
-        existingKhaleel.title = "Editor";
-        existingKhaleel.passwordHash = hashPassword("Dpath001Admin2026!");
-        existingKhaleel.active = true;
+        existing.name = seedUser.name;
+        existing.email = seedUser.email;
+        existing.role = seedUser.role;
+        existing.title = seedUser.title;
+        existing.passwordHash = seedUser.passwordHash;
+        existing.permissions = seedUser.permissions;
+        existing.allowedCategories = seedUser.allowedCategories;
+        existing.active = true;
       }
     }
   }

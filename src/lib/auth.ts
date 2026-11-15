@@ -129,6 +129,9 @@ export function verifyStaffInviteToken(token?: string): User | null {
 const PROTECTED_BUILTIN_IDS = new Set([
   "usr-admin",
   "usr-sodiq",
+  "usr-yahaya",
+  "usr-qudus",
+  "usr-habeeb",
   "usr-khaleel",
   "usr-editor",
   "usr-contrib",
@@ -138,6 +141,9 @@ const PROTECTED_BUILTIN_IDS = new Set([
 const PROTECTED_BUILTIN_EMAILS = new Set([
   "admin@dpathtojannah.com",
   "lawalsodiq915@gmail.com",
+  "abiodunbadru4u@gmail.com",
+  "ojomoabiola@gmail.com",
+  "gidadohabib1@gmail.com",
   "khaleeltasnan@gmail.com",
 ]);
 

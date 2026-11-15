@@ -978,6 +978,87 @@
       ]
     },
     {
+      "id": "usr-yahaya",
+      "name": "Mr. Yahaya Badru",
+      "email": "abiodunbadru4u@gmail.com",
+      "role": "ADMINISTRATOR",
+      "title": "Managing Editor",
+      "passwordHash": "c6569321f3d2b94d27bb354e1135acfd0a3e14790ae730527d2eab934298a170",
+      "active": true,
+      "isSuperAdmin": false,
+      "permissions": [
+        "overview",
+        "articles",
+        "publish_articles",
+        "categories",
+        "authors",
+        "opportunities",
+        "ask-scholar",
+        "approved-answers",
+        "story-submissions",
+        "contacts",
+        "media",
+        "settings"
+      ],
+      "allowedCategories": [
+        "ALL"
+      ]
+    },
+    {
+      "id": "usr-qudus",
+      "name": "Qudus Ojomo",
+      "email": "ojomoabiola@gmail.com",
+      "role": "ADMINISTRATOR",
+      "title": "Managing Editor",
+      "passwordHash": "b3a3e882103baa35707d735850a1df1cafabe9944285d3c3693e7497a8880edb",
+      "active": true,
+      "isSuperAdmin": false,
+      "permissions": [
+        "overview",
+        "articles",
+        "publish_articles",
+        "categories",
+        "authors",
+        "opportunities",
+        "ask-scholar",
+        "approved-answers",
+        "story-submissions",
+        "contacts",
+        "media",
+        "settings"
+      ],
+      "allowedCategories": [
+        "ALL"
+      ]
+    },
+    {
+      "id": "usr-habeeb",
+      "name": "Habeeb Gidado",
+      "email": "gidadohabib1@gmail.com",
+      "role": "ADMINISTRATOR",
+      "title": "Managing Editor",
+      "passwordHash": "b3a3e882103baa35707d735850a1df1cafabe9944285d3c3693e7497a8880edb",
+      "active": true,
+      "isSuperAdmin": false,
+      "permissions": [
+        "overview",
+        "articles",
+        "publish_articles",
+        "categories",
+        "authors",
+        "opportunities",
+        "ask-scholar",
+        "approved-answers",
+        "story-submissions",
+        "contacts",
+        "media",
+        "settings"
+      ],
+      "allowedCategories": [
+        "ALL"
+      ]
+    },
+    {
       "id": "usr-khaleel",
       "name": "Ibraheem Mogaji",
       "email": "khaleeltasnan@gmail.com",
