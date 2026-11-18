@@ -455,6 +455,184 @@ const DEMO_BODY = [
 
 const DEFAULT_ARTICLES: Article[] = [
   {
+    id: "art-back-to-campus-avoid-distractions-2026",
+    slug: "back-to-campus-how-to-avoid-distractions-and-actually-pass-this-semester",
+    title: "Back To Campus: How To Avoid Distractions And Actually Pass This Semester",
+    category: "campus",
+    tags: [
+      "Back to Campus",
+      "Study tips",
+      "Campus News",
+      "Student Voices",
+      "Academic Excellence",
+      "Muslim Students",
+    ],
+    summary:
+      "Every semester starts with big plans and ends with exam-week panic for many students. As campuses reopen across Nigeria, Dr. Mogaji Ibrahim shares five practical and spiritual principles to beat digital distractions and excel this semester.",
+    body: [
+      "Hostels are filling up again. Lecture halls are buzzing. The “I’m back to school” pictures are everywhere on Status and Instagram. A new academic session has started — and with it, a new chance.",
+      "But let’s be honest: every semester starts with big plans and ends with the same story for many students: “I will start reading next week.” Next week becomes test week. Test week becomes exam week. Exam week becomes panic.",
+      "If you are resuming this semester, dpathtojannah media is reminding you of one simple truth: distraction is now the biggest exam you will write before your actual exams.",
+      "It’s not just parties and outings anymore. It’s the 3 hours you planned to read that turned into 3 hours of scrolling TikTok, X, and Instagram Reels. It’s the group chat that never sleeps. The “just one episode” that became a whole season. The talking stage that became a full-time job. The side hustle that swallowed your lecture time. Nobody will come and drag you to class. In higher institution, freedom is plenty — and that freedom is the test.",
+      "As a Muslim student, your academics are not separate from your Deen. Seeking knowledge is ibadah when your intention is right. Allah says in Surah Al-Asr: “By time, indeed, mankind is in loss, except those who have believed and done righteous deeds…” — Qur’an 103:1-3. Time is your capital. Once this semester’s time is gone, it is gone.",
+      "The Prophet (peace be upon him) also advised us to take advantage of “your youth before your old age, your health before your sickness, your free time before your busyness…” That free time you have in week 1 and week 2? That is the free time the hadith is talking about.",
+      "1. Fix Your Niyyah First: Don’t just resume to “pass.” Resume to seek knowledge to benefit yourself, your family, your Ummah, and to please Allah. When the intention is clear, discipline becomes easier.",
+      "2. Have A Simple Reading Plan, Not A Perfect One: You don’t need a 10-hour timetable you will abandon by Wednesday. Start with 2 focused hours daily — no phone, no music, just you and your books. Consistency beats intensity.",
+      "3. Put Your Phone On A Leash: Your phone is not your enemy, but it needs boundaries. Use “Do Not Disturb” during reading. Keep TikTok, X and WhatsApp away for the first 1 hour of study. If you must use your phone, use it to learn — not to escape.",
+      "4. Choose Your Circle Wisely: Show us your friends, and we can predict your CGPA. Move with people who go to class, who read, who pray on time, who remind you of your goals. If your circle only calls you for cruise, it will cost you.",
+      "5. Balance Deen + Books: Don’t use “I’m busy with school” to abandon Salah, and don’t use “I’m busy with Deen activities” to abandon your books. The best Muslim student is the one who prays on time and submits assignments on time. Both are amanah.",
+      "Freshers: This is your foundation. The cruise can wait. Learn your campus, join MSSN and other good associations, know your lecturers, and start strong. First semester CGPA is very hard to correct later.",
+      "Finalists: This is not the time to relax. Project, SIWES/IT report, final exams — they all need you now. Finish strong so you don’t carry regret into NYSC and life after school.",
+      "Every semester gives you two options: You will either be distracted now and stressed later, or disciplined now and at peace later. Resumption is not just about returning to campus. It is about returning to purpose.",
+      "So, as you unpack your bags this week, unpack your goals too. What is your target CGPA this semester? What is your reading plan? What distraction are you dropping? Tell us in the comments. Let’s hold ourselves accountable. May Allah grant every student knowledge that benefits, focus, and success in this new session. Ameen.",
+    ],
+    contentBlocks: [
+      {
+        id: "blk-btc-1",
+        type: "paragraph",
+        text: "Hostels are filling up again. Lecture halls are buzzing. The “I’m back to school” pictures are everywhere on Status and Instagram.",
+      },
+      {
+        id: "blk-btc-2",
+        type: "paragraph",
+        text: "A new academic session has started — and with it, a new chance.",
+      },
+      {
+        id: "blk-btc-3",
+        type: "paragraph",
+        text: "But let’s be honest: every semester starts with big plans and ends with the same story for many students: “I will start reading next week.” Next week becomes test week. Test week becomes exam week. Exam week becomes panic.",
+      },
+      {
+        id: "blk-btc-4",
+        type: "paragraph",
+        text: "If you are resuming this semester, dpathtojannah media is reminding you of one simple truth: distraction is now the biggest exam you will write before your actual exams.",
+      },
+      {
+        id: "blk-btc-5",
+        type: "heading",
+        text: "The Distractions Are Real",
+      },
+      {
+        id: "blk-btc-6",
+        type: "paragraph",
+        text: "It’s not just parties and outings anymore. It’s the 3 hours you planned to read that turned into 3 hours of scrolling TikTok, X, and Instagram Reels.",
+      },
+      {
+        id: "blk-btc-7",
+        type: "paragraph",
+        text: "It’s the group chat that never sleeps. The “just one episode” that became a whole season. The talking stage that became a full-time job. The side hustle that swallowed your lecture time.",
+      },
+      {
+        id: "blk-btc-8",
+        type: "paragraph",
+        text: "Nobody will come and drag you to class. In higher institution, freedom is plenty — and that freedom is the test.",
+      },
+      {
+        id: "blk-btc-9",
+        type: "heading",
+        text: "For The Muslim Student, It’s Deeper",
+      },
+      {
+        id: "blk-btc-10",
+        type: "paragraph",
+        text: "As a Muslim student, your academics are not separate from your Deen. Seeking knowledge is ibadah when your intention is right.",
+      },
+      {
+        id: "blk-btc-11",
+        type: "quote",
+        text: "By time, indeed, mankind is in loss, except those who have believed and done righteous deeds…",
+        quoteAttribution: "Qur’an 103:1–3 (Surah Al-Asr)",
+      },
+      {
+        id: "blk-btc-12",
+        type: "paragraph",
+        text: "Time is your capital. Once this semester’s time is gone, it is gone.",
+      },
+      {
+        id: "blk-btc-13",
+        type: "paragraph",
+        text: "The Prophet (peace be upon him) also advised us to take advantage of “your youth before your old age, your health before your sickness, your free time before your busyness…” That free time you have in week 1 and week 2? That is the free time the hadith is talking about.",
+      },
+      {
+        id: "blk-btc-14",
+        type: "heading",
+        text: "5 Ways To Stay Serious This Semester",
+      },
+      {
+        id: "blk-btc-15",
+        type: "paragraph",
+        text: "1. Fix Your Niyyah First — Don’t just resume to “pass.” Resume to seek knowledge to benefit yourself, your family, your Ummah, and to please Allah. When the intention is clear, discipline becomes easier.",
+      },
+      {
+        id: "blk-btc-16",
+        type: "paragraph",
+        text: "2. Have A Simple Reading Plan, Not A Perfect One — You don’t need a 10-hour timetable you will abandon by Wednesday. Start with 2 focused hours daily — no phone, no music, just you and your books. Consistency beats intensity.",
+      },
+      {
+        id: "blk-btc-17",
+        type: "paragraph",
+        text: "3. Put Your Phone On A Leash — Your phone is not your enemy, but it needs boundaries. Use “Do Not Disturb” during reading. Keep TikTok, X and WhatsApp away for the first 1 hour of study. If you must use your phone, use it to learn — not to escape.",
+      },
+      {
+        id: "blk-btc-18",
+        type: "paragraph",
+        text: "4. Choose Your Circle Wisely — Show us your friends, and we can predict your CGPA. Move with people who go to class, who read, who pray on time, who remind you of your goals. If your circle only calls you for cruise, it will cost you.",
+      },
+      {
+        id: "blk-btc-19",
+        type: "paragraph",
+        text: "5. Balance Deen + Books — Don’t use “I’m busy with school” to abandon Salah, and don’t use “I’m busy with Deen activities” to abandon your books. The best Muslim student is the one who prays on time and submits assignments on time. Both are amanah.",
+      },
+      {
+        id: "blk-btc-20",
+        type: "heading",
+        text: "A Word To Freshers And Finalists",
+      },
+      {
+        id: "blk-btc-21",
+        type: "paragraph",
+        text: "Freshers: This is your foundation. The cruise can wait. Learn your campus, join MSSN and other good associations, know your lecturers, and start strong. First semester CGPA is very hard to correct later.",
+      },
+      {
+        id: "blk-btc-22",
+        type: "paragraph",
+        text: "Finalists: This is not the time to relax. Project, SIWES/IT report, final exams — they all need you now. Finish strong so you don’t carry regret into NYSC and life after school.",
+      },
+      {
+        id: "blk-btc-23",
+        type: "heading",
+        text: "The Bottom Line",
+      },
+      {
+        id: "blk-btc-24",
+        type: "paragraph",
+        text: "Every semester gives you two options: You will either be distracted now and stressed later, or disciplined now and at peace later. Resumption is not just about returning to campus. It is about returning to purpose.",
+      },
+      {
+        id: "blk-btc-25",
+        type: "paragraph",
+        text: "So, as you unpack your bags this week, unpack your goals too. What is your target CGPA this semester? What is your reading plan? What distraction are you dropping? Tell us in the comments. Let’s hold ourselves accountable.",
+      },
+      {
+        id: "blk-btc-26",
+        type: "paragraph",
+        text: "May Allah grant every student knowledge that benefits, focus, and success in this new session. Ameen.",
+      },
+    ],
+    imageCaption:
+      "Back to Campus: Balancing Deen, Focus, and Academic Excellence — By Dr. Mogaji Ibrahim | Campus Desk.",
+    authorId: "usr-khaleel",
+    authorName: "Dr. Mogaji Ibrahim | Campus Desk",
+    publishedAt: "2026-11-18",
+    updatedAt: "2026-11-18",
+    artTheme: "library",
+    verification: "V",
+    sourceName: "D-Path to Jannah Campus Desk",
+    status: "Published",
+    featured: true,
+    views: 310,
+  },
+  {
     id: "art-ui-unilag-jamb-masters-2026",
     slug: "for-masters-ui-or-unilag-the-question-that-broke-nigerian-twitter",
     title: "For Masters, UI or UNILAG? The Question That Broke Nigerian Twitter",
@@ -1411,7 +1589,11 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
     parsed.deletedArticleIds = [];
   }
   if (Array.isArray(parsed.articles)) {
-    for (const seedId of ["art-ui-unilag-jamb-masters-2026", "art-sb-hic-2026"]) {
+    for (const seedId of [
+      "art-back-to-campus-avoid-distractions-2026",
+      "art-ui-unilag-jamb-masters-2026",
+      "art-sb-hic-2026",
+    ]) {
       const seedArt = DEFAULT_ARTICLES.find((a) => a.id === seedId);
       if (!seedArt) continue;
       const existingArt = parsed.articles.find((a) => a.id === seedId);
