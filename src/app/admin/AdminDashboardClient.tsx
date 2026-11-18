@@ -1720,20 +1720,77 @@ export function AdminDashboardClient({
 
                           {/* Block Content Inputs by Type */}
                           {blk.type === "paragraph" && (
-                            <textarea
-                              rows={4}
-                              placeholder="Write paragraph text here..."
-                              value={blk.text || ""}
-                              onChange={(e) => updateBlock(idx, { text: e.target.value })}
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 8,
-                                border: "1px solid var(--border)",
-                                font: "inherit",
-                                fontSize: 14,
-                              }}
-                            />
+                            <div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  gap: 8,
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                                  Tip: Any website URL (<code>https://...</code>) or{" "}
+                                  <code>[Text](https://...)</code> becomes a clickable link automatically.
+                                </span>
+                                <button
+                                  type="button"
+                                  className="chip"
+                                  style={{
+                                    fontSize: 11.5,
+                                    padding: "3px 10px",
+                                    cursor: "pointer",
+                                    color: "var(--green)",
+                                    borderColor: "var(--green)",
+                                    fontWeight: 700,
+                                  }}
+                                  onClick={() => {
+                                    if (typeof window === "undefined") return;
+                                    const rawUrl = window.prompt(
+                                      "Paste the destination link / URL (e.g. https://camp.sbosun.org.ng):"
+                                    );
+                                    if (!rawUrl || !rawUrl.trim()) return;
+                                    let cleanUrl = rawUrl.trim();
+                                    if (
+                                      !/^https?:\/\//i.test(cleanUrl) &&
+                                      !cleanUrl.startsWith("/")
+                                    ) {
+                                      cleanUrl = `https://${cleanUrl}`;
+                                    }
+                                    const linkLabel = window.prompt(
+                                      "What text should readers click on? (Leave blank to show the link itself):",
+                                      "Click here"
+                                    );
+                                    const mdLink =
+                                      linkLabel && linkLabel.trim()
+                                        ? `[${linkLabel.trim()}](${cleanUrl})`
+                                        : cleanUrl;
+                                    const currentText = (blk.text || "").trimEnd();
+                                    updateBlock(idx, {
+                                      text: currentText ? `${currentText} ${mdLink}` : mdLink,
+                                    });
+                                  }}
+                                >
+                                  🔗 Insert Clickable Link
+                                </button>
+                              </div>
+                              <textarea
+                                rows={4}
+                                placeholder="Write paragraph text here... (Paste any https:// link or click '🔗 Insert Clickable Link' above)"
+                                value={blk.text || ""}
+                                onChange={(e) => updateBlock(idx, { text: e.target.value })}
+                                style={{
+                                  width: "100%",
+                                  padding: "10px 12px",
+                                  borderRadius: 8,
+                                  border: "1px solid var(--border)",
+                                  font: "inherit",
+                                  fontSize: 14,
+                                }}
+                              />
+                            </div>
                           )}
 
                           {blk.type === "heading" && (

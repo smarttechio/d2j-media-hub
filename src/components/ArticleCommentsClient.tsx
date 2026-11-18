@@ -1,7 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ArticleComment } from "@/lib/db";
+
+function mergeCommentLists(
+  a: Omit<ArticleComment, "authorEmail">[],
+  b: Omit<ArticleComment, "authorEmail">[]
+): Omit<ArticleComment, "authorEmail">[] {
+  const map = new Map<string, Omit<ArticleComment, "authorEmail">>();
+  for (const item of [...a, ...b]) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values()).sort((x, y) => (x.createdAt < y.createdAt ? 1 : -1));
+}
 
 export function ArticleCommentsClient({
   articleId,
@@ -21,6 +34,38 @@ export function ArticleCommentsClient({
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
+    const localKey = `d2j_comments_${articleSlug}`;
+    let localSaved: Omit<ArticleComment, "authorEmail">[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(localKey);
+        if (raw) localSaved = JSON.parse(raw);
+      } catch {
+        // ignore
+      }
+      if (localSaved.length > 0) {
+        setComments((prev) => mergeCommentLists(localSaved, prev));
+      }
+    }
+
+    fetch(`/api/admin?public=1&slug=${encodeURIComponent(articleSlug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.comments)) {
+          setComments((prev) => mergeCommentLists(data.comments, mergeCommentLists(localSaved, prev)));
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [articleSlug]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg("");
@@ -30,30 +75,44 @@ export function ArticleCommentsClient({
       setErrorMsg("Please enter your name (at least 2 characters).");
       return;
     }
-    if (content.trim().length < 5) {
-      setErrorMsg("Please write a comment of at least 5 characters.");
+    if (content.trim().length < 2) {
+      setErrorMsg("Please write a comment before posting.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/comments", {
+      const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          articleId,
-          articleSlug,
-          authorName: authorName.trim(),
-          authorEmail: authorEmail.trim(),
-          locationOrCampus: locationOrCampus.trim(),
-          content: content.trim(),
+          action: "submit_public_comment",
+          payload: {
+            articleId,
+            articleSlug,
+            authorName: authorName.trim(),
+            authorEmail: authorEmail.trim(),
+            locationOrCampus: locationOrCampus.trim(),
+            content: content.trim(),
+          },
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setErrorMsg(data.error || "Unable to post comment right now.");
       } else {
-        setComments((prev) => [data.comment, ...prev]);
+        const newCmt = data.comment;
+        setComments((prev) => {
+          const next = mergeCommentLists([newCmt], prev);
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(`d2j_comments_${articleSlug}`, JSON.stringify(next));
+            } catch {
+              // ignore
+            }
+          }
+          return next;
+        });
         setContent("");
         setSuccessMsg("Jazakallahu Khayran! Your comment has been published below.");
       }

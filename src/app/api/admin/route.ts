@@ -25,6 +25,7 @@ import {
   createSignedUsersToken,
   createStaffInviteToken,
   createDeletedArticlesToken,
+  verifyDeletedArticlesToken,
   mergeVerifiedUsersIntoList,
   SESSION_COOKIE_NAME,
   STAFF_REGISTRY_COOKIE,
@@ -75,6 +76,34 @@ function appendActivityLog(
 }
 
 export async function GET(req: NextRequest) {
+  const isPublicRead = req.nextUrl.searchParams.get('public') === '1';
+  if (isPublicRead) {
+    const db = await ensureDbSynced();
+    const delCookie = req.cookies.get(DELETED_ARTICLES_COOKIE)?.value;
+    const cookieDelIds = verifyDeletedArticlesToken(delCookie) || [];
+    const allDelIds = new Set([...(db.deletedArticleIds || []), ...cookieDelIds]);
+    const publishedArticles = db.articles
+      .filter((a) => a.status === 'Published' && a.verification !== 'D' && !allDelIds.has(a.id))
+      .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+    const slug = req.nextUrl.searchParams.get('slug');
+    const matchedArticle = slug ? publishedArticles.find((a) => a.slug === slug) || null : null;
+    const approvedComments = (db.comments || []).filter((c) => c.status === 'Approved');
+
+    return NextResponse.json({
+      ok: true,
+      article: matchedArticle,
+      articles: publishedArticles,
+      comments: slug && matchedArticle
+        ? approvedComments.filter(
+            (c) => c.articleId === matchedArticle.id || c.articleSlug === slug
+          )
+        : approvedComments,
+      opportunities: db.opportunities.filter((o) => o.workflowStatus === 'Published'),
+      categories: db.categories,
+      settings: db.settings,
+    });
+  }
+
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
@@ -278,6 +307,54 @@ export async function POST(req: NextRequest) {
       }
 
       return res;
+    }
+
+    // 0C. PUBLIC READER COMMENT SUBMISSION (shares same serverless instance as articles & admin moderation)
+    if (action === 'submit_public_comment') {
+      const articleId = String(payload?.articleId || '').trim();
+      const articleSlug = String(payload?.articleSlug || '').trim();
+      const articleTitle = String(payload?.articleTitle || '').trim();
+      const authorName = String(payload?.authorName || '').trim().slice(0, 80);
+      const locationOrCampus = String(payload?.locationOrCampus || '').trim().slice(0, 80);
+      const content = String(payload?.content || '').trim().slice(0, 1500);
+
+      if (!articleId || !authorName || !content) {
+        return NextResponse.json(
+          { error: 'Please provide your name and comment before submitting.' },
+          { status: 400 }
+        );
+      }
+
+      if (!Array.isArray(db.comments)) {
+        db.comments = [];
+      }
+
+      const newComment = {
+        id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        articleId,
+        articleSlug,
+        articleTitle: articleTitle || 'Article Discussion',
+        authorName,
+        locationOrCampus: locationOrCampus || undefined,
+        content,
+        createdAt: new Date().toISOString(),
+        status: 'Approved' as const,
+      };
+
+      db.comments.unshift(newComment);
+      await writeDbAsync(db);
+
+      const articleComments = db.comments.filter(
+        (c) =>
+          c.status === 'Approved' &&
+          (c.articleId === articleId || (articleSlug && c.articleSlug === articleSlug))
+      );
+
+      return NextResponse.json({
+        ok: true,
+        comment: newComment,
+        comments: articleComments,
+      });
     }
 
     const session = await getCurrentSession();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Article } from "@/lib/db";
 import {
@@ -8,10 +8,12 @@ import {
   VerificationBadge,
   getArticleMetaText,
   getArticleUrl,
+  getEffectiveFeaturedImage,
 } from "./ArticleCards";
 import { ArtIllustration } from "./SvgSprite";
 
 export function CategoryListingClient({
+  categorySlug,
   categoryName,
   categoryDescription,
   articles,
@@ -25,24 +27,49 @@ export function CategoryListingClient({
   initialTopic?: string;
   customTopics?: string[];
 }) {
+  const [liveArticles, setLiveArticles] = useState<Article[]>(articles);
   const [selectedTopic, setSelectedTopic] = useState(initialTopic);
   const [visibleCount, setVisibleCount] = useState(9);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin?public=1", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.articles)) {
+          const allPub = data.articles as Article[];
+          const catList =
+            categorySlug === "all" || categorySlug === "news-all"
+              ? allPub
+              : allPub.filter((a) => a.category === categorySlug);
+          if (catList.length > 0 || allPub.length > 0) {
+            setLiveArticles(categorySlug === "all" ? allPub : catList.length > 0 ? catList : allPub);
+          }
+        }
+      })
+      .catch(() => {
+        // Keep initial server articles
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [categorySlug]);
 
   const allTopics = React.useMemo(() => {
     if (customTopics && customTopics.length > 0) return customTopics;
     const set = new Set<string>(["All"]);
-    articles.forEach((a) => a.tags.forEach((t) => set.add(t)));
+    liveArticles.forEach((a) => (a.tags || []).forEach((t) => set.add(t)));
     return Array.from(set);
-  }, [articles, customTopics]);
+  }, [liveArticles, customTopics]);
 
   const filtered = React.useMemo(() => {
-    if (selectedTopic === "All") return articles;
-    return articles.filter((a) =>
-      a.tags.some((t) => t.toLowerCase() === selectedTopic.toLowerCase())
+    if (selectedTopic === "All") return liveArticles;
+    return liveArticles.filter((a) =>
+      (a.tags || []).some((t) => t.toLowerCase() === selectedTopic.toLowerCase())
     );
-  }, [articles, selectedTopic]);
+  }, [liveArticles, selectedTopic]);
 
-  const featured = articles[0];
+  const featured = liveArticles[0];
   const listItems = selectedTopic === "All" ? filtered.slice(1) : filtered;
 
   return (
@@ -92,7 +119,7 @@ export function CategoryListingClient({
             >
               <ArtIllustration
                 theme={featured.artTheme}
-                featuredImage={featured.featuredImage}
+                featuredImage={getEffectiveFeaturedImage(featured)}
                 label={featured.title}
               />
             </Link>
