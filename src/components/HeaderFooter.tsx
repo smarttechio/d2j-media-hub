@@ -35,6 +35,71 @@ export function HeaderClient({
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || pathname?.startsWith("/admin")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap: { savedArticles?: unknown[]; deletedArticleIds?: string[] } | null = null;
+        if ("indexedDB" in window) {
+          snap = await new Promise((resolve) => {
+            try {
+              const req = window.indexedDB.open("d2j_cms_idb_v1", 1);
+              req.onupgradeneeded = () => {
+                if (!req.result.objectStoreNames.contains("snapshots")) {
+                  req.result.createObjectStore("snapshots");
+                }
+              };
+              req.onsuccess = () => {
+                try {
+                  const tx = req.result.transaction("snapshots", "readonly");
+                  const getReq = tx.objectStore("snapshots").get("main");
+                  getReq.onsuccess = () => resolve(getReq.result || null);
+                  getReq.onerror = () => resolve(null);
+                } catch {
+                  resolve(null);
+                }
+              };
+              req.onerror = () => resolve(null);
+            } catch {
+              resolve(null);
+            }
+          });
+        }
+        if (!snap) {
+          const raw = window.localStorage.getItem("d2j_cms_snapshot_v1");
+          if (raw) snap = JSON.parse(raw);
+        }
+        if (
+          !cancelled &&
+          snap &&
+          ((Array.isArray(snap.savedArticles) && snap.savedArticles.length > 0) ||
+            (Array.isArray(snap.deletedArticleIds) && snap.deletedArticleIds.length > 0))
+        ) {
+          const res = await fetch("/api/admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_cms_snapshot",
+              payload: {
+                savedArticles: snap.savedArticles || [],
+                deletedArticleIds: snap.deletedArticleIds || [],
+              },
+            }),
+          });
+          if (res.ok && !cancelled) {
+            router.refresh();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
+
+  useEffect(() => {
     setMenuOpen(false);
     setExploreOpen(false);
     setSearchOpen(false);

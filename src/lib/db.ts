@@ -339,6 +339,7 @@ export interface SiteSettings {
 
 export interface DatabaseSchema {
   articles: Article[];
+  deletedArticleIds?: string[];
   categories: Category[];
   authors: Author[];
   opportunities: Opportunity[];
@@ -1199,10 +1200,21 @@ let memoryDbCache: DatabaseSchema | null = null;
 let lastSupabaseSyncAt = 0;
 
 function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
+  if (!Array.isArray(parsed.deletedArticleIds)) {
+    parsed.deletedArticleIds = [];
+  }
   if (Array.isArray(parsed.articles)) {
     const sbSeed = DEFAULT_ARTICLES.find((a) => a.id === "art-sb-hic-2026");
-    if (sbSeed && !parsed.articles.some((a) => a.id === "art-sb-hic-2026")) {
+    if (
+      sbSeed &&
+      !parsed.articles.some((a) => a.id === "art-sb-hic-2026") &&
+      !parsed.deletedArticleIds.includes("art-sb-hic-2026")
+    ) {
       parsed.articles = [sbSeed, ...parsed.articles];
+    }
+    if (parsed.deletedArticleIds.length > 0) {
+      const delSet = new Set(parsed.deletedArticleIds);
+      parsed.articles = parsed.articles.filter((a) => !delSet.has(a.id));
     }
   }
   if (Array.isArray(parsed.users)) {

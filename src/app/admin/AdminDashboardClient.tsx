@@ -117,6 +117,165 @@ const PERMISSION_LABELS: { id: DashboardPermission; label: string; desc: string 
   { id: "settings", label: "Platform Settings", desc: "Edit site title, emails & breaking news ticker" },
 ];
 
+interface CmsLocalSnapshot {
+  savedArticles: Article[];
+  deletedArticleIds: string[];
+  updatedAt: number;
+}
+
+const CMS_STORAGE_KEY = "d2j_cms_snapshot_v1";
+const CMS_IDB_NAME = "d2j_cms_idb_v1";
+const CMS_IDB_STORE = "snapshots";
+
+function openCmsIdb(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(CMS_IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(CMS_IDB_STORE)) {
+          db.createObjectStore(CMS_IDB_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function readCmsLocalSnapshot(): Promise<CmsLocalSnapshot> {
+  const empty: CmsLocalSnapshot = { savedArticles: [], deletedArticleIds: [], updatedAt: 0 };
+  if (typeof window === "undefined") return empty;
+  try {
+    const idb = await openCmsIdb();
+    if (idb) {
+      const fromIdb = await new Promise<CmsLocalSnapshot | null>((resolve) => {
+        try {
+          const tx = idb.transaction(CMS_IDB_STORE, "readonly");
+          const req = tx.objectStore(CMS_IDB_STORE).get("main");
+          req.onsuccess = () => resolve((req.result as CmsLocalSnapshot) || null);
+          req.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+      if (fromIdb && (fromIdb.savedArticles?.length || fromIdb.deletedArticleIds?.length)) {
+        return {
+          savedArticles: Array.isArray(fromIdb.savedArticles) ? fromIdb.savedArticles : [],
+          deletedArticleIds: Array.isArray(fromIdb.deletedArticleIds) ? fromIdb.deletedArticleIds : [],
+          updatedAt: fromIdb.updatedAt || Date.now(),
+        };
+      }
+    }
+  } catch {
+    // Fallback to localStorage
+  }
+  try {
+    const raw = window.localStorage.getItem(CMS_STORAGE_KEY);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as CmsLocalSnapshot;
+    return {
+      savedArticles: Array.isArray(parsed.savedArticles) ? parsed.savedArticles : [],
+      deletedArticleIds: Array.isArray(parsed.deletedArticleIds) ? parsed.deletedArticleIds : [],
+      updatedAt: parsed.updatedAt || Date.now(),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+async function writeCmsLocalSnapshot(snap: CmsLocalSnapshot): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const idb = await openCmsIdb();
+    if (idb) {
+      await new Promise<void>((resolve) => {
+        try {
+          const tx = idb.transaction(CMS_IDB_STORE, "readwrite");
+          tx.objectStore(CMS_IDB_STORE).put(snap, "main");
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        } catch {
+          resolve();
+        }
+      });
+    }
+  } catch {
+    // Ignore IDB errors
+  }
+  try {
+    window.localStorage.setItem(CMS_STORAGE_KEY, JSON.stringify(snap));
+  } catch {
+    // If localStorage quota exceeded due to large images, store deletedArticleIds + lightweight metadata in localStorage
+    try {
+      window.localStorage.setItem(
+        CMS_STORAGE_KEY,
+        JSON.stringify({
+          savedArticles: [],
+          deletedArticleIds: snap.deletedArticleIds,
+          updatedAt: snap.updatedAt,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function persistSavedArticleLocally(article: Article): Promise<CmsLocalSnapshot> {
+  const snap = await readCmsLocalSnapshot();
+  const deletedArticleIds = snap.deletedArticleIds.filter((id) => id !== article.id);
+  const existingIdx = snap.savedArticles.findIndex((a) => a.id === article.id);
+  const savedArticles = [...snap.savedArticles];
+  if (existingIdx >= 0) {
+    savedArticles[existingIdx] = article;
+  } else {
+    savedArticles.unshift(article);
+  }
+  const updated: CmsLocalSnapshot = {
+    savedArticles,
+    deletedArticleIds,
+    updatedAt: Date.now(),
+  };
+  await writeCmsLocalSnapshot(updated);
+  return updated;
+}
+
+async function persistDeletedArticleLocally(articleId: string): Promise<CmsLocalSnapshot> {
+  const snap = await readCmsLocalSnapshot();
+  const savedArticles = snap.savedArticles.filter((a) => a.id !== articleId);
+  const deletedArticleIds = snap.deletedArticleIds.includes(articleId)
+    ? snap.deletedArticleIds
+    : [...snap.deletedArticleIds, articleId];
+  const updated: CmsLocalSnapshot = {
+    savedArticles,
+    deletedArticleIds,
+    updatedAt: Date.now(),
+  };
+  await writeCmsLocalSnapshot(updated);
+  return updated;
+}
+
+function mergeArticlesWithSnapshot(baseArticles: Article[], snap: CmsLocalSnapshot): Article[] {
+  const delSet = new Set(snap.deletedArticleIds || []);
+  const list = baseArticles.filter((a) => !delSet.has(a.id));
+  for (const saved of snap.savedArticles || []) {
+    if (!saved || !saved.id || delSet.has(saved.id)) continue;
+    const idx = list.findIndex((a) => a.id === saved.id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...saved };
+    } else {
+      list.unshift(saved);
+    }
+  }
+  return list;
+}
+
 interface SafeUser {
   id: string;
   name: string;
@@ -278,11 +437,41 @@ export function AdminDashboardClient({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    (async () => {
+      const snap = await readCmsLocalSnapshot();
+      if (!cancelled && (snap.savedArticles.length > 0 || snap.deletedArticleIds.length > 0)) {
+        setArticles((prev) => mergeArticlesWithSnapshot(prev, snap));
+        try {
+          const syncRes = await fetch("/api/admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_cms_snapshot",
+              payload: {
+                savedArticles: snap.savedArticles,
+                deletedArticleIds: snap.deletedArticleIds,
+              },
+            }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            if (!cancelled && Array.isArray(syncData.articles)) {
+              setArticles(mergeArticlesWithSnapshot(syncData.articles, snap));
+            }
+          }
+        } catch {
+          // Keep locally merged articles
+        }
+      }
+
+      try {
+        const r = await fetch("/api/admin");
+        const data = r.ok ? await r.json() : null;
         if (!data || cancelled) return;
-        if (Array.isArray(data.articles)) setArticles(data.articles);
+        const latestSnap = await readCmsLocalSnapshot();
+        if (Array.isArray(data.articles)) {
+          setArticles(mergeArticlesWithSnapshot(data.articles, latestSnap));
+        }
         if (Array.isArray(data.categories)) setCategories(data.categories);
         if (Array.isArray(data.authors)) setAuthors(data.authors);
         if (Array.isArray(data.opportunities)) setOpportunities(data.opportunities);
@@ -294,10 +483,10 @@ export function AdminDashboardClient({
         if (Array.isArray(data.users) && data.users.length > 0) setUsers(data.users);
         if (Array.isArray(data.activityLogs)) setActivityLogs(data.activityLogs);
         if (data.settings) setSettings(data.settings);
-      })
-      .catch(() => {
+      } catch {
         // Keep initial server props if background sync fails
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -353,12 +542,8 @@ export function AdminDashboardClient({
       const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(objectUrl);
-        const maxDim = 1400;
+        const maxDim = 1000;
         let { width, height } = img;
-        if (width <= maxDim && height <= maxDim && file.size <= 350 * 1024) {
-          resolve(file);
-          return;
-        }
         if (width > maxDim || height > maxDim) {
           if (width >= height) {
             height = Math.round((height * maxDim) / width);
@@ -387,7 +572,7 @@ export function AdminDashboardClient({
             resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }));
           },
           "image/jpeg",
-          0.82
+          0.74
         );
       };
       img.onerror = () => {
@@ -503,7 +688,7 @@ export function AdminDashboardClient({
       authorName: session.name,
       artTheme: "campus",
       imageCaption: "Editorial illustration — D2J Media Hub.",
-      status: "Draft",
+      status: canPublish ? "Published" : "Draft",
       verification: "V",
       sourceName: "",
       sourceUrl: "",
@@ -604,7 +789,18 @@ export function AdminDashboardClient({
         bodyParagraphs: finalParagraphs,
         contentBlocks: cleanedBlocks.length > 0 ? cleanedBlocks : undefined,
       });
-      setArticles(data.articles);
+      const savedArt: Article | undefined =
+        data.savedArticle ||
+        (Array.isArray(data.articles)
+          ? data.articles.find((a: Article) => a.title === cleanTitle)
+          : undefined);
+      if (savedArt) {
+        const snap = await persistSavedArticleLocally(savedArt);
+        setArticles(mergeArticlesWithSnapshot(data.articles || articles, snap));
+      } else if (Array.isArray(data.articles)) {
+        const snap = await readCmsLocalSnapshot();
+        setArticles(mergeArticlesWithSnapshot(data.articles, snap));
+      }
       setEditingArticle(null);
       notify(
         finalStatus === "Published"
@@ -628,7 +824,13 @@ export function AdminDashboardClient({
   async function handleArticleStatus(id: string, status: ArticleStatus) {
     try {
       const data = await apiAction("update_article_status", { id, status });
-      setArticles(data.articles);
+      if (data.savedArticle) {
+        const snap = await persistSavedArticleLocally(data.savedArticle);
+        setArticles(mergeArticlesWithSnapshot(data.articles || articles, snap));
+      } else {
+        const snap = await readCmsLocalSnapshot();
+        setArticles(mergeArticlesWithSnapshot(data.articles || articles, snap));
+      }
       notify(`Article moved to "${status}".`);
     } catch {
       // handled
@@ -643,8 +845,12 @@ export function AdminDashboardClient({
       return;
     }
     try {
+      const snap = await persistDeletedArticleLocally(id);
+      setArticles((prev) => mergeArticlesWithSnapshot(prev, snap));
       const data = await apiAction("delete_article", { id });
-      setArticles(data.articles);
+      if (Array.isArray(data.articles)) {
+        setArticles(mergeArticlesWithSnapshot(data.articles, snap));
+      }
       if (editingArticle?.id === id) {
         setEditingArticle(null);
       }

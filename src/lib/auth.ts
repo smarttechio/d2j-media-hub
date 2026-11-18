@@ -22,6 +22,32 @@ function getSessionSecret(): string {
 
 export const SESSION_COOKIE_NAME = "d2j_editorial_session";
 export const STAFF_REGISTRY_COOKIE = "d2j_staff_registry";
+export const DELETED_ARTICLES_COOKIE = "d2j_deleted_articles";
+
+export function createDeletedArticlesToken(ids: string[]): string {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const data = Buffer.from(JSON.stringify(uniqueIds)).toString("base64url");
+  const sig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}
+
+export function verifyDeletedArticlesToken(token?: string): string[] | null {
+  if (!token || !token.includes(".")) return null;
+  const [data, sig] = token.split(".");
+  if (!data || !sig) return null;
+  const expectedSig = crypto.createHmac("sha256", getSessionSecret()).update(data).digest("base64url");
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    return Array.isArray(parsed) ? (parsed as string[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface SessionPayload {
   userId: string;
@@ -210,8 +236,25 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
 
   const db = await ensureDbSynced();
   const registryCookie = cookieStore.get(STAFF_REGISTRY_COOKIE)?.value;
+  const deletedCookie = cookieStore.get(DELETED_ARTICLES_COOKIE)?.value;
+  const verifiedDeletedIds = verifyDeletedArticlesToken(deletedCookie);
+  let deletedChanged = false;
+  if (verifiedDeletedIds && verifiedDeletedIds.length > 0) {
+    if (!Array.isArray(db.deletedArticleIds)) db.deletedArticleIds = [];
+    for (const delId of verifiedDeletedIds) {
+      if (!db.deletedArticleIds.includes(delId)) {
+        db.deletedArticleIds.push(delId);
+        deletedChanged = true;
+      }
+    }
+    const beforeLen = db.articles.length;
+    const delSet = new Set(db.deletedArticleIds);
+    db.articles = db.articles.filter((a) => !delSet.has(a.id));
+    if (db.articles.length !== beforeLen) deletedChanged = true;
+  }
+
   const { users, changed } = mergeVerifiedUsersIntoList(db.users, registryCookie);
-  if (changed) {
+  if (changed || deletedChanged) {
     db.users = users;
     await writeDbAsync(db);
   }
