@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Article } from "@/lib/db";
 import {
   getArticleUrl,
+  getEffectiveFeaturedImage,
   VerificationBadge,
   getArticleMetaText,
 } from "./ArticleCards";
@@ -97,7 +98,7 @@ export function FeaturedStoriesCarousel({
           >
             <ArtIllustration
               theme={current.artTheme}
-              featuredImage={current.featuredImage}
+              featuredImage={getEffectiveFeaturedImage(current)}
               featuredVideo={current.featuredVideo}
               label={`Illustration for: ${current.title}`}
             />

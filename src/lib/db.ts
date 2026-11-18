@@ -490,6 +490,13 @@ const DEFAULT_ARTICLES: Article[] = [
         text: "It started as a simple question from a prospective postgraduate student. It ended as a full-blown “war of words” — and grammar — between three of Nigeria’s biggest education brands.",
       },
       {
+        id: "blk-1794982363394-5p7p",
+        type: "image",
+        text: "",
+        imageUrl: "/uploads/ui-unilag-masters-block-1.jpg",
+        imageCaption: "",
+      },
+      {
         id: "blk-ui-2",
         type: "paragraph",
         text: "On Monday, an X user, Opeyemi Asake, asked Nigerians a question many final-year students and fresh graduates are quietly asking themselves:",
@@ -516,6 +523,13 @@ const DEFAULT_ARTICLES: Article[] = [
         text: "The University of Ibadan (UI) replied in full “sermon mode”:",
       },
       {
+        id: "blk-1794982416921-tp1c",
+        type: "image",
+        text: "",
+        imageUrl: "/uploads/ui-unilag-masters-block-2.jpg",
+        imageCaption: "",
+      },
+      {
         id: "blk-ui-7",
         type: "quote",
         text: "Dear Opeyemi, we say unto you, Do not be deceived, for some will mention schools that are not UI. But verily verily, we say unto you, there’s only one First and the Best University in Nigeria and in the World, Our Very own University of ibadan or others.",
@@ -530,6 +544,13 @@ const DEFAULT_ARTICLES: Article[] = [
         id: "blk-ui-9",
         type: "heading",
         text: "UNILAG Claps Back — Over Grammar",
+      },
+      {
+        id: "blk-1794982450817-agrf",
+        type: "image",
+        text: "",
+        imageUrl: "/uploads/ui-unilag-masters-block-3.jpg",
+        imageCaption: "",
       },
       {
         id: "blk-ui-10",
@@ -626,6 +647,7 @@ const DEFAULT_ARTICLES: Article[] = [
         text: "Which side are you on, Team UI, Team UNILAG or UNI ILORIN? And do you agree with JAMB’s final blow? Drop your take in the comments. Keep it halal, keep it Islamic.",
       },
     ],
+    featuredImage: "/uploads/ui-unilag-masters-featured.jpg",
     imageCaption:
       "Campus & Postgraduate Debate: UI, UNILAG, UNILORIN, and JAMB — Illustration: D2J Campus Desk.",
     authorId: "usr-sodiq",
@@ -1391,12 +1413,18 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
   if (Array.isArray(parsed.articles)) {
     for (const seedId of ["art-ui-unilag-jamb-masters-2026", "art-sb-hic-2026"]) {
       const seedArt = DEFAULT_ARTICLES.find((a) => a.id === seedId);
-      if (
-        seedArt &&
-        !parsed.articles.some((a) => a.id === seedId) &&
-        !parsed.deletedArticleIds.includes(seedId)
-      ) {
+      if (!seedArt) continue;
+      const existingArt = parsed.articles.find((a) => a.id === seedId);
+      if (!existingArt && !parsed.deletedArticleIds.includes(seedId)) {
         parsed.articles = [seedArt, ...parsed.articles];
+      } else if (existingArt && seedId === "art-ui-unilag-jamb-masters-2026") {
+        if (!existingArt.featuredImage) {
+          existingArt.featuredImage = seedArt.featuredImage;
+        }
+        const hasImgBlock = (existingArt.contentBlocks || []).some((b) => Boolean(b.imageUrl));
+        if (!hasImgBlock) {
+          existingArt.contentBlocks = seedArt.contentBlocks;
+        }
       }
     }
     // Unpublish all demo articles (verification === "D" or Demo: prefix)

@@ -14,6 +14,7 @@ import {
   ArticleCard,
   VerificationBadge,
   formatDisplayDate,
+  getEffectiveFeaturedImage,
 } from "@/components/ArticleCards";
 import { ShareRow } from "@/components/CategoryListingClient";
 import { ArtIllustration } from "@/components/SvgSprite";
@@ -208,7 +209,7 @@ export default async function ArticleDetailPage({
           <div className={`art a-${article.artTheme}`}>
             <ArtIllustration
               theme={article.artTheme}
-              featuredImage={article.featuredImage}
+              featuredImage={getEffectiveFeaturedImage(article)}
               featuredVideo={article.featuredVideo}
               interactiveVideo={true}
               label={`Media for: ${article.title}`}

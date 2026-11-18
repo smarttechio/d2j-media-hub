@@ -334,6 +334,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const firstBlockImage = Array.isArray(contentBlocks)
+        ? contentBlocks.find((b: { imageUrl?: string; secondImageUrl?: string }) =>
+            Boolean(b?.imageUrl || b?.secondImageUrl)
+          )
+        : undefined;
+      const autoFeaturedImage =
+        featuredImage || firstBlockImage?.imageUrl || firstBlockImage?.secondImageUrl || undefined;
+
       const existingIdx = id ? db.articles.findIndex((a) => a.id === id) : -1;
       const nowDate = new Date().toISOString().slice(0, 10);
 
@@ -366,8 +374,7 @@ export async function POST(req: NextRequest) {
           tags: Array.isArray(tags) ? tags : current.tags,
           authorName: authorName ?? current.authorName,
           artTheme: artTheme ?? current.artTheme,
-          featuredImage:
-            featuredImage !== undefined ? featuredImage || undefined : current.featuredImage,
+          featuredImage: autoFeaturedImage ?? current.featuredImage,
           featuredVideo:
             featuredVideo !== undefined ? featuredVideo || undefined : current.featuredVideo,
           imageCaption: imageCaption ?? current.imageCaption,
@@ -426,7 +433,7 @@ export async function POST(req: NextRequest) {
           publishedAt: nowDate,
           updatedAt: nowDate,
           artTheme: artTheme || 'campus',
-          featuredImage: featuredImage || undefined,
+          featuredImage: autoFeaturedImage,
           featuredVideo: featuredVideo || undefined,
           imageCaption: String(imageCaption || 'Editorial illustration — D2J Media Hub.'),
           verification: verification || 'V',

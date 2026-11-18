@@ -48,6 +48,17 @@ export function getArticleMetaText(article: Article): string {
   return `${article.sourceName || article.authorName} · ${formatDisplayDate(article.publishedAt)}`;
 }
 
+export function getEffectiveFeaturedImage(article: Article): string | undefined {
+  if (article.featuredImage) return article.featuredImage;
+  if (Array.isArray(article.contentBlocks)) {
+    const blkWithImg = article.contentBlocks.find((b) =>
+      Boolean(b.imageUrl || b.secondImageUrl)
+    );
+    if (blkWithImg) return blkWithImg.imageUrl || blkWithImg.secondImageUrl;
+  }
+  return undefined;
+}
+
 export function ArticleCard({
   article,
   showSummary = false,
@@ -60,6 +71,7 @@ export function ArticleCard({
   const url = getArticleUrl(article);
   const catLabel = CATEGORY_NAMES[article.category] || article.category;
   const isOpinion = article.category === "opinion" || article.tags.includes("Student Voices");
+  const coverImage = getEffectiveFeaturedImage(article);
 
   return (
     <article className={isLead ? "lead card" : "card"}>
@@ -70,7 +82,7 @@ export function ArticleCard({
       >
         <ArtIllustration
           theme={article.artTheme}
-          featuredImage={article.featuredImage}
+          featuredImage={coverImage}
           featuredVideo={article.featuredVideo}
           label={`Illustration for: ${article.title}`}
         />
@@ -93,6 +105,7 @@ export function ArticleCard({
 export function SmallArticleCard({ article }: { article: Article }) {
   const url = getArticleUrl(article);
   const catLabel = CATEGORY_NAMES[article.category] || article.category;
+  const coverImage = getEffectiveFeaturedImage(article);
 
   return (
     <article className="sm card">
@@ -103,7 +116,7 @@ export function SmallArticleCard({ article }: { article: Article }) {
       >
         <ArtIllustration
           theme={article.artTheme}
-          featuredImage={article.featuredImage}
+          featuredImage={coverImage}
           featuredVideo={article.featuredVideo}
           label={`Illustration for: ${article.title}`}
         />
