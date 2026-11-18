@@ -35,36 +35,99 @@ export function ArticleCommentsClient({
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
+    if (Array.isArray(initialComments) && initialComments.length > 0) {
+      setComments((prev) => mergeCommentLists(initialComments, prev));
+    }
+  }, [initialComments]);
+
+  useEffect(() => {
     let cancelled = false;
     const localKey = `d2j_comments_${articleSlug}`;
-    let localSaved: Omit<ArticleComment, "authorEmail">[] = [];
-    if (typeof window !== "undefined") {
+
+    const readLocalComments = (): Omit<ArticleComment, "authorEmail">[] => {
+      if (typeof window === "undefined") return [];
       try {
         const raw = window.localStorage.getItem(localKey);
-        if (raw) localSaved = JSON.parse(raw);
+        return raw ? JSON.parse(raw) : [];
       } catch {
-        // ignore
+        return [];
       }
-      if (localSaved.length > 0) {
+    };
+
+    const syncAndLoad = async () => {
+      const localSaved = readLocalComments();
+      if (!cancelled && localSaved.length > 0) {
         setComments((prev) => mergeCommentLists(localSaved, prev));
       }
-    }
 
-    fetch(`/api/admin?public=1&slug=${encodeURIComponent(articleSlug)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data && Array.isArray(data.comments)) {
-          setComments((prev) => mergeCommentLists(data.comments, mergeCommentLists(localSaved, prev)));
+      try {
+        const r = await fetch(
+          `/api/admin?public=1&slug=${encodeURIComponent(articleSlug)}&t=${Date.now()}`,
+          { cache: "no-store" }
+        );
+        const data = r.ok ? await r.json() : null;
+        const serverComments: Omit<ArticleComment, "authorEmail">[] =
+          data && Array.isArray(data.comments) ? data.comments : [];
+
+        // If this browser has comments in localStorage that the server container lost on cold-start, push them back!
+        const missingOnServer = localSaved.filter(
+          (loc) => !serverComments.some((srv) => srv.id === loc.id)
+        );
+
+        if (missingOnServer.length > 0) {
+          const syncRes = await fetch("/api/admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_public_comments",
+              payload: {
+                articleId,
+                articleSlug,
+                comments: localSaved,
+              },
+            }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            if (!cancelled && Array.isArray(syncData.comments)) {
+              const merged = mergeCommentLists(syncData.comments, localSaved);
+              setComments((prev) => mergeCommentLists(merged, prev));
+              if (typeof window !== "undefined") {
+                try {
+                  window.localStorage.setItem(localKey, JSON.stringify(merged));
+                } catch {
+                  // ignore
+                }
+              }
+              return;
+            }
+          }
         }
-      })
-      .catch(() => {
-        // ignore
-      });
+
+        if (!cancelled) {
+          const merged = mergeCommentLists(serverComments, localSaved);
+          setComments((prev) => mergeCommentLists(merged, prev));
+          if (typeof window !== "undefined" && merged.length > 0) {
+            try {
+              window.localStorage.setItem(localKey, JSON.stringify(merged));
+            } catch {
+              // ignore
+            }
+          }
+        }
+      } catch {
+        // ignore network error
+      }
+    };
+
+    void syncAndLoad();
+    const pollTimer = setInterval(syncAndLoad, 12000);
 
     return () => {
       cancelled = true;
+      clearInterval(pollTimer);
     };
-  }, [articleSlug]);
+  }, [articleId, articleSlug]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

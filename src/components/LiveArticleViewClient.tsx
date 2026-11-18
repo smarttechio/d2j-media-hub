@@ -100,6 +100,7 @@ export function LiveArticleViewClient({
   initialRelated: Article[];
 }) {
   const [article, setArticle] = useState<Article | null>(initialArticle);
+  const [comments, setComments] = useState<Omit<ArticleComment, "authorEmail">[]>(initialComments);
   const [related, setRelated] = useState<Article[]>(initialRelated);
   const [loadingLive, setLoadingLive] = useState(!initialArticle);
 
@@ -145,13 +146,19 @@ export function LiveArticleViewClient({
 
       // 2. Fetch live article & attached pictures from /api/admin?public=1
       try {
-        const res = await fetch(`/api/admin?public=1&slug=${encodeURIComponent(slug)}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/admin?public=1&slug=${encodeURIComponent(slug)}&t=${Date.now()}`,
+          {
+            cache: "no-store",
+          }
+        );
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && data.article) {
             setArticle(data.article);
+          }
+          if (!cancelled && Array.isArray(data.comments)) {
+            setComments(data.comments);
           }
           if (!cancelled && Array.isArray(data.articles)) {
             const rel = (data.articles as Article[])
@@ -474,7 +481,7 @@ export function LiveArticleViewClient({
           <ArticleCommentsClient
             articleId={article.id}
             articleSlug={article.slug}
-            initialComments={initialComments}
+            initialComments={comments}
           />
         </div>
       </article>

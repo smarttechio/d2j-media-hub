@@ -75,6 +75,15 @@ function appendActivityLog(
   db.activityLogs.unshift(newLog);
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
 export async function GET(req: NextRequest) {
   const isPublicRead = req.nextUrl.searchParams.get('public') === '1';
   if (isPublicRead) {
@@ -89,19 +98,24 @@ export async function GET(req: NextRequest) {
     const matchedArticle = slug ? publishedArticles.find((a) => a.slug === slug) || null : null;
     const approvedComments = (db.comments || []).filter((c) => c.status === 'Approved');
 
-    return NextResponse.json({
-      ok: true,
-      article: matchedArticle,
-      articles: publishedArticles,
-      comments: slug && matchedArticle
-        ? approvedComments.filter(
-            (c) => c.articleId === matchedArticle.id || c.articleSlug === slug
-          )
-        : approvedComments,
-      opportunities: db.opportunities.filter((o) => o.workflowStatus === 'Published'),
-      categories: db.categories,
-      settings: db.settings,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        article: matchedArticle,
+        articles: publishedArticles,
+        comments: slug
+          ? approvedComments.filter(
+              (c) =>
+                c.articleSlug === slug ||
+                (matchedArticle && c.articleId === matchedArticle.id)
+            )
+          : approvedComments,
+        opportunities: db.opportunities.filter((o) => o.workflowStatus === 'Published'),
+        categories: db.categories,
+        settings: db.settings,
+      },
+      { headers: NO_CACHE_HEADERS }
+    );
   }
 
   const session = await getCurrentSession();
@@ -350,11 +364,65 @@ export async function POST(req: NextRequest) {
           (c.articleId === articleId || (articleSlug && c.articleSlug === articleSlug))
       );
 
-      return NextResponse.json({
-        ok: true,
-        comment: newComment,
-        comments: articleComments,
-      });
+      return NextResponse.json(
+        {
+          ok: true,
+          comment: newComment,
+          comments: articleComments,
+        },
+        { headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    // 0D. SYNC CACHED PUBLIC COMMENTS (re-hydrates cold serverless container with reader comments)
+    if (action === 'sync_public_comments') {
+      const incomingComments = Array.isArray(payload?.comments) ? payload.comments : [];
+      const articleId = String(payload?.articleId || '').trim();
+      const articleSlug = String(payload?.articleSlug || '').trim();
+
+      if (!Array.isArray(db.comments)) {
+        db.comments = [];
+      }
+
+      let changed = false;
+      for (const cmt of incomingComments) {
+        if (!cmt || !cmt.id || !cmt.authorName || !cmt.content) continue;
+        if (!db.comments.some((existing) => existing.id === cmt.id)) {
+          db.comments.unshift({
+            id: String(cmt.id),
+            articleId: String(cmt.articleId || articleId || 'art-1'),
+            articleSlug: String(cmt.articleSlug || articleSlug || ''),
+            articleTitle: String(cmt.articleTitle || 'Article Discussion'),
+            authorName: String(cmt.authorName).slice(0, 80),
+            locationOrCampus: cmt.locationOrCampus ? String(cmt.locationOrCampus).slice(0, 80) : undefined,
+            content: String(cmt.content).slice(0, 1500),
+            createdAt: String(cmt.createdAt || new Date().toISOString()),
+            status: 'Approved' as const,
+          });
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        db.comments.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+        await writeDbAsync(db);
+      }
+
+      const filteredComments = db.comments.filter(
+        (c) =>
+          c.status === 'Approved' &&
+          (!articleSlug && !articleId
+            ? true
+            : c.articleSlug === articleSlug || (articleId && c.articleId === articleId))
+      );
+
+      return NextResponse.json(
+        {
+          ok: true,
+          comments: filteredComments,
+        },
+        { headers: NO_CACHE_HEADERS }
+      );
     }
 
     const session = await getCurrentSession();
