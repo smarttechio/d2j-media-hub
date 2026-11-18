@@ -1399,10 +1399,25 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
         parsed.articles = [seedArt, ...parsed.articles];
       }
     }
+    // Unpublish all demo articles (verification === "D" or Demo: prefix)
+    parsed.articles = parsed.articles.map((a) => {
+      if (a.verification === "D" || /^demo(\s+opinion)?:/i.test(a.title || "")) {
+        return { ...a, status: "Draft", featured: false };
+      }
+      return a;
+    });
     if (parsed.deletedArticleIds.length > 0) {
       const delSet = new Set(parsed.deletedArticleIds);
       parsed.articles = parsed.articles.filter((a) => !delSet.has(a.id));
     }
+  }
+  if (Array.isArray(parsed.scholarQuestions)) {
+    parsed.scholarQuestions = parsed.scholarQuestions.map((q) => {
+      if (q.isDemo || /^demo\s+question:/i.test(q.subject || "")) {
+        return { ...q, status: "Editorial Screening" };
+      }
+      return q;
+    });
   }
   if (Array.isArray(parsed.users)) {
     const oldAdminHash = hashPassword("D2J_Admin_Secure_2026!");
@@ -1596,21 +1611,21 @@ export async function writeDbAsync(data: DatabaseSchema): Promise<void> {
   }
 }
 
-// Public-safe query helpers (NEVER return drafts or private submissions)
+// Public-safe query helpers (NEVER return drafts, demo content, or private submissions)
 export function getPublishedArticles(category?: string): Article[] {
   const db = readDb();
-  const list = db.articles.filter((a) => a.status === "Published");
+  const list = db.articles.filter((a) => a.status === "Published" && a.verification !== "D");
   const filtered = category ? list.filter((a) => a.category === category) : list;
   return filtered.sort((a, b) => {
-    const vDiff = Number(b.verification !== "D") - Number(a.verification !== "D");
-    if (vDiff !== 0) return vDiff;
     return a.publishedAt < b.publishedAt ? 1 : -1;
   });
 }
 
 export function getPublishedArticleBySlug(slug: string): Article | undefined {
   const db = readDb();
-  return db.articles.find((a) => a.slug === slug && a.status === "Published");
+  return db.articles.find(
+    (a) => a.slug === slug && a.status === "Published" && a.verification !== "D"
+  );
 }
 
 export function getApprovedCommentsForArticle(articleId: string, articleSlug?: string): ArticleComment[] {
@@ -1638,7 +1653,7 @@ export function getPublishedOpportunityBySlug(slug: string): Opportunity | undef
 export function getPublishedScholarAnswers(): ScholarQuestion[] {
   const db = readDb();
   return db.scholarQuestions
-    .filter((q) => q.status === "Published")
+    .filter((q) => q.status === "Published" && !q.isDemo)
     .map((q) => ({
       ...q,
       // Strip private contact info from public responses

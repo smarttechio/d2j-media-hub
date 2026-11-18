@@ -418,8 +418,8 @@
       "updatedAt": "2026-01-12",
       "artTheme": "well",
       "verification": "D",
-      "status": "Published",
-      "featured": true,
+      "status": "Draft",
+      "featured": false,
       "views": 198
     },
     {
@@ -443,8 +443,9 @@
       "updatedAt": "2026-01-11",
       "artTheme": "library",
       "verification": "D",
-      "status": "Published",
-      "views": 142
+      "status": "Draft",
+      "views": 142,
+      "featured": false
     },
     {
       "id": "art-5",
@@ -468,8 +469,9 @@
       "updatedAt": "2026-01-10",
       "artTheme": "campus",
       "verification": "D",
-      "status": "Published",
-      "views": 175
+      "status": "Draft",
+      "views": 175,
+      "featured": false
     },
     {
       "id": "art-6",
@@ -491,8 +493,8 @@
       "updatedAt": "2026-01-09",
       "artTheme": "quran",
       "verification": "D",
-      "status": "Published",
-      "featured": true,
+      "status": "Draft",
+      "featured": false,
       "views": 260
     },
     {
@@ -515,8 +517,9 @@
       "updatedAt": "2026-01-08",
       "artTheme": "quran",
       "verification": "D",
-      "status": "Published",
-      "views": 154
+      "status": "Draft",
+      "views": 154,
+      "featured": false
     },
     {
       "id": "art-8",
@@ -538,8 +541,9 @@
       "updatedAt": "2026-01-07",
       "artTheme": "library",
       "verification": "D",
-      "status": "Published",
-      "views": 130
+      "status": "Draft",
+      "views": 130,
+      "featured": false
     },
     {
       "id": "art-9",
@@ -562,8 +566,9 @@
       "updatedAt": "2026-01-06",
       "artTheme": "biz",
       "verification": "D",
-      "status": "Published",
-      "views": 210
+      "status": "Draft",
+      "views": 210,
+      "featured": false
     },
     {
       "id": "art-10",
@@ -586,8 +591,9 @@
       "updatedAt": "2026-01-05",
       "artTheme": "biz",
       "verification": "D",
-      "status": "Published",
-      "views": 185
+      "status": "Draft",
+      "views": 185,
+      "featured": false
     },
     {
       "id": "art-11",
@@ -609,8 +615,9 @@
       "updatedAt": "2026-01-04",
       "artTheme": "biz",
       "verification": "D",
-      "status": "Published",
-      "views": 118
+      "status": "Draft",
+      "views": 118,
+      "featured": false
     },
     {
       "id": "art-12",
@@ -633,8 +640,9 @@
       "updatedAt": "2026-01-03",
       "artTheme": "biz",
       "verification": "D",
-      "status": "Published",
-      "views": 140
+      "status": "Draft",
+      "views": 140,
+      "featured": false
     },
     {
       "id": "art-13",
@@ -657,8 +665,9 @@
       "updatedAt": "2026-01-02",
       "artTheme": "well",
       "verification": "D",
-      "status": "Published",
-      "views": 165
+      "status": "Draft",
+      "views": 165,
+      "featured": false
     },
     {
       "id": "art-14",
@@ -681,8 +690,9 @@
       "updatedAt": "2026-01-01",
       "artTheme": "well",
       "verification": "D",
-      "status": "Published",
-      "views": 95
+      "status": "Draft",
+      "views": 95,
+      "featured": false
     },
     {
       "id": "art-15",
@@ -705,8 +715,9 @@
       "updatedAt": "2025-12-31",
       "artTheme": "campus",
       "verification": "D",
-      "status": "Published",
-      "views": 112
+      "status": "Draft",
+      "views": 112,
+      "featured": false
     },
     {
       "id": "art-16",
@@ -729,8 +740,9 @@
       "updatedAt": "2025-12-30",
       "artTheme": "community",
       "verification": "D",
-      "status": "Published",
-      "views": 104
+      "status": "Draft",
+      "views": 104,
+      "featured": false
     },
     {
       "id": "art-draft-1",
@@ -751,7 +763,8 @@
       "artTheme": "campus",
       "verification": "D",
       "status": "Draft",
-      "views": 0
+      "views": 0,
+      "featured": false
     }
   ],
   "categories": [
@@ -1000,7 +1013,7 @@
       "anonymousPreference": true,
       "consentGiven": true,
       "submittedAt": "2026-01-15",
-      "status": "Published",
+      "status": "Editorial Screening",
       "answerText": [
         "Placeholder response, not a ruling. Reviewed scholarly content will replace this. This demonstration record contains no real fatwa, verse, Hadith or citation.",
         "Longer answers use short paragraphs, subheadings and lists in the same reading column as articles."
@@ -1025,7 +1038,7 @@
       "anonymousPreference": true,
       "consentGiven": true,
       "submittedAt": "2026-01-14",
-      "status": "Published",
+      "status": "Editorial Screening",
       "answerText": [
         "Placeholder response, not a ruling. Reviewed scholarly content will replace this. This demonstration record contains no real fatwa, verse, Hadith or citation."
       ],
@@ -1048,7 +1061,7 @@
       "anonymousPreference": true,
       "consentGiven": true,
       "submittedAt": "2026-01-10",
-      "status": "Published",
+      "status": "Editorial Screening",
       "answerText": [
         "Placeholder response, not a ruling. Reviewed scholarly content will replace this. This demonstration record contains no real fatwa, verse, Hadith or citation."
       ],

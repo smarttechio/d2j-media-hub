@@ -67,10 +67,10 @@ export default function HomePage() {
     <>
       <div className="wrap">
         <div className="stat" style={{ marginTop: 18 }}>
-          <b>How to read this site</b> Items marked{" "}
+          <b>Editorial Verification</b> Reports marked{" "}
           <span className="tg A">Verified source</span> or{" "}
-          <span className="tg C">Source checked</span> summarise real reporting and link to the
-          original. Items marked <span className="tg B">Demo content</span> are layout samples only.
+          <span className="tg C">Source checked</span> summarise verified reporting and link to the
+          primary source.
         </div>
 
         {/* Top Stories */}
