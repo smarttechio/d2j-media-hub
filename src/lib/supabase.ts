@@ -42,8 +42,30 @@ export async function loadStateFromSupabase(
 ): Promise<DatabaseSchema | null> {
   const cfg = getSupabaseConfig();
   if (!cfg) return null;
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "d2j-media";
 
   try {
+    // 1. Try reading from auto-created Supabase Storage bucket (requires zero SQL setup)
+    const storageRes = await fetch(
+      `${cfg.url}/storage/v1/object/${bucket}/cms-state-v1.json?t=${Date.now()}`,
+      {
+        method: "GET",
+        headers: {
+          apikey: cfg.serviceRoleKey,
+          Authorization: `Bearer ${cfg.serviceRoleKey}`,
+        },
+        cache: "no-store",
+      }
+    ).catch(() => null);
+
+    if (storageRes && storageRes.ok) {
+      const stateJson = (await storageRes.json()) as DatabaseSchema;
+      if (stateJson && Array.isArray(stateJson.articles)) {
+        return stateJson;
+      }
+    }
+
+    // 2. Fallback to PostgreSQL d2j_app_state table
     const res = await fetch(
       `${cfg.url}/rest/v1/d2j_app_state?id=eq.singleton&select=state`,
       {
@@ -53,16 +75,14 @@ export async function loadStateFromSupabase(
       }
     );
 
-    if (!res.ok) {
-      return null;
+    if (res.ok) {
+      const rows = (await res.json()) as { state: DatabaseSchema }[];
+      if (Array.isArray(rows) && rows.length > 0 && rows[0]?.state) {
+        return rows[0].state;
+      }
     }
 
-    const rows = (await res.json()) as { state: DatabaseSchema }[];
-    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.state) {
-      return rows[0].state;
-    }
-
-    // If table is empty on first connection and we have initial seed data, migrate safely (DO NOTHING on conflict)
+    // If empty on first connection and we have initial seed data, seed safely
     if (fallbackInitial) {
       await saveStateToSupabase(fallbackInitial, true);
       return fallbackInitial;
@@ -74,8 +94,7 @@ export async function loadStateFromSupabase(
 }
 
 /**
- * Persist DatabaseSchema to Supabase PostgreSQL (`public.d2j_app_state` + relational tables).
- * When `onlyIfEmpty` is true, uses `resolution=ignore-duplicates` so existing production data is never overwritten.
+ * Persist DatabaseSchema to Supabase Storage (`d2j-media/cms-state-v1.json`) + PostgreSQL (`public.d2j_app_state` + relational tables).
  */
 export async function saveStateToSupabase(
   data: DatabaseSchema,
@@ -83,13 +102,35 @@ export async function saveStateToSupabase(
 ): Promise<boolean> {
   const cfg = getSupabaseConfig();
   if (!cfg) return false;
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "d2j-media";
 
   try {
+    // 1. Auto-create d2j-media bucket (idempotent, requires zero SQL setup) & upload cms-state-v1.json
+    await fetch(`${cfg.url}/storage/v1/bucket`, {
+      method: "POST",
+      headers: getHeaders(cfg.serviceRoleKey),
+      body: JSON.stringify({ id: bucket, name: bucket, public: true }),
+    }).catch(() => null);
+
+    const storageUploadRes = await fetch(
+      `${cfg.url}/storage/v1/object/${bucket}/cms-state-v1.json`,
+      {
+        method: "POST",
+        headers: {
+          apikey: cfg.serviceRoleKey,
+          Authorization: `Bearer ${cfg.serviceRoleKey}`,
+          "Content-Type": "application/json",
+          "x-upsert": onlyIfEmpty ? "false" : "true",
+        },
+        body: JSON.stringify(data),
+      }
+    ).catch(() => null);
+
     const prefer = onlyIfEmpty
       ? "resolution=ignore-duplicates,return=minimal"
       : "resolution=merge-duplicates,return=minimal";
 
-    // 1. Upsert atomic full state into d2j_app_state
+    // 2. Upsert atomic full state into d2j_app_state (if SQL table exists)
     const stateRes = await fetch(`${cfg.url}/rest/v1/d2j_app_state`, {
       method: "POST",
       headers: getHeaders(cfg.serviceRoleKey, { Prefer: prefer }),
@@ -98,12 +139,12 @@ export async function saveStateToSupabase(
         state: data,
         updated_at: new Date().toISOString(),
       }),
-    });
+    }).catch(() => null);
 
-    // 2. Mirror relational tables in background for SQL analytics & direct relational queries
-    await syncRelationalTables(cfg.url, cfg.serviceRoleKey, data, prefer);
+    // 3. Mirror relational tables in background
+    void syncRelationalTables(cfg.url, cfg.serviceRoleKey, data, prefer);
 
-    return stateRes.ok;
+    return Boolean((storageUploadRes && storageUploadRes.ok) || (stateRes && stateRes.ok));
   } catch {
     return false;
   }

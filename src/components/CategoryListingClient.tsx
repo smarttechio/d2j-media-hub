@@ -33,23 +33,84 @@ export function CategoryListingClient({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin?public=1", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data && Array.isArray(data.articles)) {
-          const allPub = data.articles as Article[];
-          const catList =
-            categorySlug === "all" || categorySlug === "news-all"
-              ? allPub
-              : allPub.filter((a) => a.category === categorySlug);
-          if (catList.length > 0 || allPub.length > 0) {
-            setLiveArticles(categorySlug === "all" ? allPub : catList.length > 0 ? catList : allPub);
+    (async () => {
+      let snap: { savedArticles?: Article[]; deletedArticleIds?: string[] } = {};
+      if (typeof window !== "undefined") {
+        try {
+          if ("indexedDB" in window) {
+            const fromIdb = await new Promise<typeof snap | null>((resolve) => {
+              try {
+                const req = window.indexedDB.open("d2j_cms_idb_v1", 1);
+                req.onupgradeneeded = () => {
+                  if (!req.result.objectStoreNames.contains("snapshots")) {
+                    req.result.createObjectStore("snapshots");
+                  }
+                };
+                req.onsuccess = () => {
+                  try {
+                    const tx = req.result.transaction("snapshots", "readonly");
+                    const getReq = tx.objectStore("snapshots").get("main");
+                    getReq.onsuccess = () => resolve(getReq.result || null);
+                    getReq.onerror = () => resolve(null);
+                  } catch {
+                    resolve(null);
+                  }
+                };
+                req.onerror = () => resolve(null);
+              } catch {
+                resolve(null);
+              }
+            });
+            if (fromIdb) snap = fromIdb;
+          }
+        } catch {
+          // ignore
+        }
+        if (!snap.savedArticles && !snap.deletedArticleIds) {
+          try {
+            const raw = window.localStorage.getItem("d2j_cms_snapshot_v1");
+            if (raw) snap = JSON.parse(raw);
+          } catch {
+            // ignore
           }
         }
-      })
-      .catch(() => {
+      }
+
+      const applyFilter = (sourceList: Article[]) => {
+        const delSet = new Set(snap.deletedArticleIds || []);
+        const list = sourceList.filter(
+          (a) => a.status === "Published" && a.verification !== "D" && !delSet.has(a.id)
+        );
+        for (const saved of snap.savedArticles || []) {
+          if (!saved || !saved.id || delSet.has(saved.id)) continue;
+          const idx = list.findIndex((a) => a.id === saved.id);
+          if (saved.status === "Published" && saved.verification !== "D") {
+            if (idx >= 0) list[idx] = { ...list[idx], ...saved };
+            else list.unshift(saved);
+          } else if (idx >= 0) {
+            list.splice(idx, 1);
+          }
+        }
+        const sorted = list.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+        if (categorySlug === "all" || categorySlug === "news-all") return sorted;
+        return sorted.filter((a) => a.category === categorySlug);
+      };
+
+      if (!cancelled && (snap.savedArticles?.length || snap.deletedArticleIds?.length)) {
+        setLiveArticles((prev) => applyFilter(prev));
+      }
+
+      try {
+        const r = await fetch(`/api/admin?public=1&t=${Date.now()}`, { cache: "no-store" });
+        const data = r.ok ? await r.json() : null;
+        if (!cancelled && data && Array.isArray(data.articles)) {
+          const filteredList = applyFilter(data.articles as Article[]);
+          if (filteredList.length > 0) setLiveArticles(filteredList);
+        }
+      } catch {
         // Keep initial server articles
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

@@ -12,6 +12,75 @@ import {
 import { FeaturedStoriesCarousel } from "./FeaturedSliderClient";
 import { ArtIllustration } from "./SvgSprite";
 
+interface LocalSnap {
+  savedArticles?: Article[];
+  deletedArticleIds?: string[];
+}
+
+async function readBrowserCmsSnap(): Promise<LocalSnap> {
+  if (typeof window === "undefined") return {};
+  try {
+    if ("indexedDB" in window) {
+      const fromIdb = await new Promise<LocalSnap | null>((resolve) => {
+        try {
+          const req = window.indexedDB.open("d2j_cms_idb_v1", 1);
+          req.onupgradeneeded = () => {
+            if (!req.result.objectStoreNames.contains("snapshots")) {
+              req.result.createObjectStore("snapshots");
+            }
+          };
+          req.onsuccess = () => {
+            try {
+              const tx = req.result.transaction("snapshots", "readonly");
+              const getReq = tx.objectStore("snapshots").get("main");
+              getReq.onsuccess = () => resolve((getReq.result as LocalSnap) || null);
+              getReq.onerror = () => resolve(null);
+            } catch {
+              resolve(null);
+            }
+          };
+          req.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+      if (fromIdb && (fromIdb.savedArticles?.length || fromIdb.deletedArticleIds?.length)) {
+        return fromIdb;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  try {
+    const raw = window.localStorage.getItem("d2j_cms_snapshot_v1");
+    if (raw) return JSON.parse(raw) as LocalSnap;
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+function mergePublicArticlesWithSnap(serverArticles: Article[], snap: LocalSnap): Article[] {
+  const delSet = new Set(snap.deletedArticleIds || []);
+  const list = serverArticles.filter(
+    (a) => a.status === "Published" && a.verification !== "D" && !delSet.has(a.id)
+  );
+  for (const saved of snap.savedArticles || []) {
+    if (!saved || !saved.id || delSet.has(saved.id)) continue;
+    const idx = list.findIndex((a) => a.id === saved.id);
+    if (saved.status === "Published" && saved.verification !== "D") {
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...saved };
+      } else {
+        list.unshift(saved);
+      }
+    } else if (idx >= 0) {
+      list.splice(idx, 1);
+    }
+  }
+  return list.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+}
+
 export function LiveHomeViewClient({
   initialArticles,
   initialOpportunities,
@@ -25,12 +94,34 @@ export function LiveHomeViewClient({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const snap = await readBrowserCmsSnap();
+      if (!cancelled && (snap.savedArticles?.length || snap.deletedArticleIds?.length)) {
+        setAllArticles((prev) => mergePublicArticlesWithSnap(prev, snap));
+        try {
+          await fetch("/api/admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_cms_snapshot",
+              payload: {
+                savedArticles: snap.savedArticles || [],
+                deletedArticleIds: snap.deletedArticleIds || [],
+              },
+            }),
+          });
+        } catch {
+          // ignore
+        }
+      }
+
       try {
-        const res = await fetch("/api/admin?public=1", { cache: "no-store" });
+        const res = await fetch(`/api/admin?public=1&t=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          if (!cancelled && Array.isArray(data.articles) && data.articles.length > 0) {
-            setAllArticles(data.articles);
+          const latestSnap = await readBrowserCmsSnap();
+          if (!cancelled && Array.isArray(data.articles)) {
+            const merged = mergePublicArticlesWithSnap(data.articles, latestSnap);
+            if (merged.length > 0) setAllArticles(merged);
           }
           if (!cancelled && Array.isArray(data.opportunities) && data.opportunities.length > 0) {
             setOpportunities(data.opportunities);
