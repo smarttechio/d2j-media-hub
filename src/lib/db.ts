@@ -455,6 +455,114 @@ const DEMO_BODY = [
 
 const DEFAULT_ARTICLES: Article[] = [
   {
+    id: "art-sb-cmp-2026-results",
+    slug: "sb-releases-2026-cmp-results-as-kwara-male-candidate-emerges-overall-best-winner",
+    title: "SB Releases 2026 CMP Results As Kwara Male Candidate Emerges Overall Best Winner",
+    category: "campus",
+    tags: [
+      "Standard Bearers",
+      "Career Mentorship Programme",
+      "Scholarships",
+      "Student Achievements",
+      "Campus News",
+      "Kwara State",
+    ],
+    summary:
+      "The Standard Bearers Islamic Organization (SB), in collaboration with The Future Scholars (TFS), has released the results of its 2026 Career Mentorship Programme (CMP) scholarship examination, with Popoola Ridwan from the Kwara Centre emerging as overall best performer with 86 per cent.",
+    body: [
+      "The Standard Bearers Islamic Organization (SB), in collaboration with The Future Scholars (TFS), has officially released the results of its 2026 Career Mentorship Programme (CMP) scholarship examination, with a male candidate from Kwara State emerging as the overall best performer.",
+      "The National Chairman of the Career Mentorship Programme, Mr Gidado Habib Olalekan, announced the release of the results on Monday, disclosing that Popoola Ridwan, who participated in the examination at the Kwara Centre, emerged as the overall best candidate with an impressive score of 86 per cent.",
+      "Habib, while announcing the results, said a total of 417 students participated in the examination across centres in Abuja, Kwara, Kano, Ondo and Osun States.",
+      "Giving a breakdown of the performance, he disclosed that 54 candidates scored 50 per cent and above, comprising 36 candidates who scored between 50 and 59 per cent, 15 candidates who recorded between 60 and 69 per cent, and three candidates who scored between 70 and 100 per cent.",
+      "He, however, noted that 277 candidates scored below 40 per cent, indicating the need for sustained efforts to improve students’ academic performance.",
+      "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers.",
+      "He explained that the examination, which assessed candidates in Mathematics and English Language, was designed to identify academically promising Muslim students and provide deserving candidates with scholarship opportunities.",
+      "According to him, the programme remains part of the organisation’s commitment to promoting academic excellence, encouraging healthy intellectual competition and supporting the educational development of Muslim students.",
+      "The examination was conducted through a Computer-Based Test (CBT) format, with questions prepared in line with the academic standards of the West African Examinations Council (WAEC) and the expected learning capacity of Senior Secondary School Three (SS3) students.",
+      "Recall that speaking during the examination exercise, Habib had described the conduct of the test as smooth and hitch-free, expressing satisfaction with the preparedness and comportment of the participating candidates.",
+      "He had also emphasised that the Career Mentorship Programme was designed not only to reward outstanding academic performance but also to develop students’ intellectual abilities and prepare them for future academic and career challenges and also support students through extramural classes.",
+    ],
+    contentBlocks: [
+      {
+        id: "blk-cmp-1",
+        type: "paragraph",
+        text: "The Standard Bearers Islamic Organization (SB), in collaboration with The Future Scholars (TFS), has officially released the results of its 2026 Career Mentorship Programme (CMP) scholarship examination, with a male candidate from Kwara State emerging as the overall best performer.",
+      },
+      {
+        id: "blk-cmp-2",
+        type: "paragraph",
+        text: "The National Chairman of the Career Mentorship Programme, Mr Gidado Habib Olalekan, announced the release of the results on Monday, disclosing that Popoola Ridwan, who participated in the examination at the Kwara Centre, emerged as the overall best candidate with an impressive score of 86 per cent.",
+      },
+      {
+        id: "blk-cmp-img-1",
+        type: "image",
+        text: "",
+        imageUrl: "/uploads/sb-cmp-2026-cbt-exam.jpg",
+        imageCaption:
+          "Candidates taking the 2026 Standard Bearers Career Mentorship Programme (CMP) Computer-Based Test (CBT) scholarship examination.",
+      },
+      {
+        id: "blk-cmp-3",
+        type: "paragraph",
+        text: "Habib, while announcing the results, said a total of 417 students participated in the examination across centres in Abuja, Kwara, Kano, Ondo and Osun States.",
+      },
+      {
+        id: "blk-cmp-4",
+        type: "paragraph",
+        text: "Giving a breakdown of the performance, he disclosed that 54 candidates scored 50 per cent and above, comprising 36 candidates who scored between 50 and 59 per cent, 15 candidates who recorded between 60 and 69 per cent, and three candidates who scored between 70 and 100 per cent.",
+      },
+      {
+        id: "blk-cmp-5",
+        type: "paragraph",
+        text: "He, however, noted that 277 candidates scored below 40 per cent, indicating the need for sustained efforts to improve students’ academic performance.",
+      },
+      {
+        id: "blk-cmp-6",
+        type: "paragraph",
+        text: "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers.",
+      },
+      {
+        id: "blk-cmp-7",
+        type: "paragraph",
+        text: "He explained that the examination, which assessed candidates in Mathematics and English Language, was designed to identify academically promising Muslim students and provide deserving candidates with scholarship opportunities.",
+      },
+      {
+        id: "blk-cmp-8",
+        type: "paragraph",
+        text: "According to him, the programme remains part of the organisation’s commitment to promoting academic excellence, encouraging healthy intellectual competition and supporting the educational development of Muslim students.",
+      },
+      {
+        id: "blk-cmp-9",
+        type: "paragraph",
+        text: "The examination was conducted through a Computer-Based Test (CBT) format, with questions prepared in line with the academic standards of the West African Examinations Council (WAEC) and the expected learning capacity of Senior Secondary School Three (SS3) students.",
+      },
+      {
+        id: "blk-cmp-10",
+        type: "paragraph",
+        text: "Recall that speaking during the examination exercise, Habib had described the conduct of the test as smooth and hitch-free, expressing satisfaction with the preparedness and comportment of the participating candidates.",
+      },
+      {
+        id: "blk-cmp-11",
+        type: "paragraph",
+        text: "He had also emphasised that the Career Mentorship Programme was designed not only to reward outstanding academic performance but also to develop students’ intellectual abilities and prepare them for future academic and career challenges and also support students through extramural classes.",
+      },
+    ],
+    featuredImage: "/uploads/sb-cmp-2026-cbt-exam.jpg",
+    imageCaption:
+      "Candidates sitting for the 2026 Standard Bearers Career Mentorship Programme (CMP) Computer-Based Test (CBT) scholarship examination — Photo: D2J Campus Desk.",
+    authorId: "usr-habeeb",
+    authorName: "D2J Editorial Desk",
+    publishedAt: "2026-11-19",
+    updatedAt: "2026-11-19",
+    artTheme: "campus",
+    verification: "V",
+    sourceName: "Standard Bearers Islamic Organization (SB) / Career Mentorship Programme",
+    status: "Published",
+    featured: true,
+    breaking: true,
+    views: 410,
+  },
+  {
     id: "art-back-to-campus-avoid-distractions-2026",
     slug: "back-to-campus-how-to-avoid-distractions-and-actually-pass-this-semester",
     title: "Back To Campus: How To Avoid Distractions And Actually Pass This Semester",
@@ -1590,6 +1698,7 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
   }
   if (Array.isArray(parsed.articles)) {
     for (const seedId of [
+      "art-sb-cmp-2026-results",
       "art-back-to-campus-avoid-distractions-2026",
       "art-ui-unilag-jamb-masters-2026",
       "art-sb-hic-2026",
