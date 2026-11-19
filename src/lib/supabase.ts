@@ -1,5 +1,22 @@
 import type { DatabaseSchema } from "./db";
 
+export function getKvRestConfig(): { url: string; token: string } | null {
+  const url = (
+    process.env.KV_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_URL ||
+    ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  const token = (
+    process.env.KV_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    ""
+  ).trim();
+  if (!url || !token) return null;
+  return { url, token };
+}
+
 export function getSupabaseConfig(): { url: string; serviceRoleKey: string } | null {
   const url = (
     process.env.SUPABASE_URL ||
@@ -11,6 +28,8 @@ export function getSupabaseConfig(): { url: string; serviceRoleKey: string } | n
   const serviceRoleKey = (
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     ""
   ).trim();
 
@@ -21,7 +40,7 @@ export function getSupabaseConfig(): { url: string; serviceRoleKey: string } | n
 }
 
 export function isSupabaseConfigured(): boolean {
-  return getSupabaseConfig() !== null;
+  return getSupabaseConfig() !== null || getKvRestConfig() !== null;
 }
 
 function getHeaders(serviceRoleKey: string, extra?: Record<string, string>): Record<string, string> {
@@ -40,6 +59,35 @@ function getHeaders(serviceRoleKey: string, extra?: Record<string, string>): Rec
 export async function loadStateFromSupabase(
   fallbackInitial?: DatabaseSchema
 ): Promise<DatabaseSchema | null> {
+  // 0. Check Vercel KV / Upstash Redis REST API first if connected via Vercel Storage tab
+  const kvCfg = getKvRestConfig();
+  if (kvCfg) {
+    try {
+      const kvRes = await fetch(`${kvCfg.url}/get/d2j_cms_state_v1`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${kvCfg.token}` },
+        cache: "no-store",
+      });
+      if (kvRes.ok) {
+        const kvJson = (await kvRes.json()) as { result?: string | DatabaseSchema | null };
+        if (kvJson && kvJson.result) {
+          const parsed =
+            typeof kvJson.result === "string"
+              ? (JSON.parse(kvJson.result) as DatabaseSchema)
+              : (kvJson.result as DatabaseSchema);
+          if (parsed && Array.isArray(parsed.articles)) {
+            return parsed;
+          }
+        } else if (fallbackInitial) {
+          await saveStateToSupabase(fallbackInitial, true);
+          return fallbackInitial;
+        }
+      }
+    } catch {
+      // Fall through to Supabase if KV fails
+    }
+  }
+
   const cfg = getSupabaseConfig();
   if (!cfg) return null;
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "d2j-media";
@@ -100,8 +148,29 @@ export async function saveStateToSupabase(
   data: DatabaseSchema,
   onlyIfEmpty = false
 ): Promise<boolean> {
+  let savedToKv = false;
+  const kvCfg = getKvRestConfig();
+  if (kvCfg) {
+    try {
+      const kvUrl = onlyIfEmpty
+        ? `${kvCfg.url}/set/d2j_cms_state_v1?NX=true`
+        : `${kvCfg.url}/set/d2j_cms_state_v1`;
+      const kvRes = await fetch(kvUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${kvCfg.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      savedToKv = kvRes.ok;
+    } catch {
+      // ignore
+    }
+  }
+
   const cfg = getSupabaseConfig();
-  if (!cfg) return false;
+  if (!cfg) return savedToKv;
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "d2j-media";
 
   try {
