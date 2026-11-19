@@ -95,7 +95,15 @@ export async function GET(req: NextRequest) {
       .filter((a) => a.status === 'Published' && a.verification !== 'D' && !allDelIds.has(a.id))
       .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
     const slug = req.nextUrl.searchParams.get('slug');
-    const matchedArticle = slug ? publishedArticles.find((a) => a.slug === slug) || null : null;
+    const baseSlug = slug ? slug.replace(/-\d{4}$/, '') : '';
+    const matchedArticle = slug
+      ? publishedArticles.find(
+          (a) =>
+            a.slug === slug ||
+            a.slug === baseSlug ||
+            a.slug.replace(/-\d{4}$/, '') === baseSlug
+        ) || null
+      : null;
     const approvedComments = (db.comments || []).filter((c) => c.status === 'Approved');
 
     return NextResponse.json(

@@ -456,9 +456,9 @@ const DEMO_BODY = [
 const DEFAULT_ARTICLES: Article[] = [
   {
     id: "art-sb-cmp-2026-results",
-    slug: "sb-releases-2026-cmp-results-as-kwara-male-candidate-emerges-overall-best-winner",
+    slug: "sb-releases-2026-cmp-results-as-kwara-male-candidate-emerges-overall-best-winner-5752",
     title: "SB Releases 2026 CMP Results As Kwara Male Candidate Emerges Overall Best Winner",
-    category: "campus",
+    category: "education",
     tags: [
       "Standard Bearers",
       "Career Mentorship Programme",
@@ -1708,6 +1708,10 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
       const existingArt = parsed.articles.find((a) => a.id === seedId);
       if (!existingArt && !parsed.deletedArticleIds.includes(seedId)) {
         parsed.articles = [seedArt, ...parsed.articles];
+      } else if (existingArt && seedId === "art-sb-cmp-2026-results") {
+        existingArt.slug = seedArt.slug;
+        existingArt.category = seedArt.category;
+        existingArt.featuredImage = seedArt.featuredImage;
       } else if (existingArt && seedId === "art-ui-unilag-jamb-masters-2026") {
         if (!existingArt.featuredImage) {
           existingArt.featuredImage = seedArt.featuredImage;
@@ -1942,8 +1946,17 @@ export function getPublishedArticles(category?: string): Article[] {
 
 export function getPublishedArticleBySlug(slug: string): Article | undefined {
   const db = readDb();
-  return db.articles.find(
+  const exact = db.articles.find(
     (a) => a.slug === slug && a.status === "Published" && a.verification !== "D"
+  );
+  if (exact) return exact;
+  // Also allow matching without or with trailing 4-digit timestamp suffix
+  const baseSlug = slug.replace(/-\d{4}$/, "");
+  return db.articles.find(
+    (a) =>
+      a.status === "Published" &&
+      a.verification !== "D" &&
+      (a.slug === baseSlug || a.slug.replace(/-\d{4}$/, "") === baseSlug)
   );
 }
 
