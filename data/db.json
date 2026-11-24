@@ -1,6 +1,247 @@
 {
   "articles": [
     {
+      "id": "art-from-fear-to-eloquence-lukman-raimi",
+      "slug": "from-fear-to-eloquence-eight-practical-strategies-for-overcoming-public-speaking-anxiety-and-building-confidence",
+      "title": "From Fear to Eloquence: Eight Practical Strategies for Overcoming Public Speaking Anxiety and Building Confidence",
+      "category": "education",
+      "tags": [
+        "Public Speaking",
+        "Glossophobia",
+        "Effective Communication",
+        "Confidence Building",
+        "Leadership Development",
+        "Personal Development",
+        "Professional Development",
+        "Communication Skills",
+        "Academic Leadership",
+        "Spiritual Intelligence",
+        "Emotional Intelligence",
+        "Lifelong Learning"
+      ],
+      "summary": "Drawing on over 30 years of cumulative experience as an educational administrator, public speaker, former deputy Imam and lecturer, Dr. Lukman Raimi shares eight practical and spiritual strategies for overcoming glossophobia (public speaking anxiety) and communicating with confidence.",
+      "body": [
+        "By Lukman Raimi, PhD, LL.M, MNIM",
+        "As an educational administrator, public speaker, former deputy Imam at two higher education institutions, and lecturer with a cumulative experience spanning over 30 years, I have come to appreciate that effective public speaking is not necessarily an innate talent but a competence developed through continuous learning, deliberate practice and emotional self-regulation.",
+        "Public speaking anxiety, commonly referred to as glossophobia, is a challenge experienced by many individuals, irrespective of their educational qualifications, professional accomplishments or intellectual capabilities. Even experienced speakers experience nervousness before addressing an audience.",
+        "Drawing on my diverse experiences, I wish to share the eight practical strategies with individuals who experience anxiety or phobia associated with public speaking.",
+        "1. Seek Divine Assistance and Spiritual Composure: As a Muslim, I begin by seeking divine assistance, clarity of thought, eloquence and confidence. Spiritual preparation complements intellectual preparation and provides a sense of reassurance and emotional stability.",
+        "How: At corporate, academic and secular events, I silently recite the supplication of Prophet Musa (AS):",
+        "“My Lord, expand for me my chest, ease for me my task, and untie the knot from my tongue so that they may understand my speech.” (Qur’an 20:25–28).",
+        "At Islamic events, I openly commence with Bismillahir-Rahmanir-Rahim, followed by the traditional Khutbatul Hajah. By the time I conclude the opening supplication, much of the initial nervousness has subsided. (Hahaha!)",
+        "2. Reframe Nervousness as Positive Energy: A racing heartbeat, sweaty palms and heightened alertness are natural physiological responses to stressful situations. Rather than interpreting these reactions as signs of weakness or impending failure, regard them as indications of readiness and excitement.",
+        "How: Replace negative thoughts such as “I am going to fail” with positive affirmations such as “I am prepared, knowledgeable and capable of delivering a meaningful presentation.” I can do it!",
+        "3. Prepare Thoroughly Without Excessive Memorisation: Adequate preparation enhances intellectual confidence and reduces uncertainty. However, memorising an entire speech word for word may increase anxiety when a speaker forgets a particular sentence.",
+        "How: Develop a structured outline comprising your introduction, key arguments, supporting examples and conclusion. Use brief notes or keywords to guide your presentation while maintaining flexibility and spontaneity.",
+        "4. Engage in Deliberate and Consistent Practice: Public speaking is a competence strengthened through repeated exposure and experiential learning. Regular practice gradually reduces apprehension and improves articulation, composure and delivery.",
+        "How: Rehearse aloud while standing, practise before a mirror, record yourself using your mobile phone and seek constructive feedback from trusted colleagues, friends or family members. Progress gradually from small audiences to larger gatherings.",
+        "5. Regulate Your Breathing: Controlled breathing helps regulate physiological arousal, reduce anxiety and maintain emotional stability before and during presentations.",
+        "How: Practise the box-breathing technique: inhale for four seconds, hold for four seconds, exhale for four seconds and hold for another four seconds. Repeat several times if comfortable. Alternatively, breathe slowly with a slightly longer exhalation.",
+        "6. Release Physical and Muscular Tension: Anxiety often manifests through muscular stiffness, trembling hands and restricted body movements. Physical relaxation can improve composure and facilitate natural delivery.",
+        "How: Before your presentation, take a short walk, stretch gently, relax your shoulders and engage in light physical movements. Adopt an upright but relaxed posture when addressing your audience.",
+        "7. Prioritise the Audience and the Message: Excessive self-consciousness frequently intensifies public speaking anxiety. Effective communication requires shifting attention from personal insecurities to the value of the knowledge being communicated.",
+        "How: Ask yourself: What knowledge am I sharing? What problem am I addressing? How will my audience benefit from this presentation? Maintain natural eye contact and concentrate on communicating value rather than seeking personal perfection.",
+        "8. Embrace Strategic Pauses and Silence: Silence is not necessarily an indication of incompetence or inadequate preparation. Strategic pauses are powerful rhetorical devices that enhance clarity, emphasis, audience engagement and comprehension.",
+        "How: Pause briefly after communicating an important point, before introducing a new argument or thought. Avoid filling every moment of silence with unnecessary expressions such as “um,” “actually” or “you know.”",
+        "Concluding Reflection",
+        "The ultimate objective of public speaking is not perfection but effective communication, knowledge dissemination and meaningful audience engagement. Confidence is not necessarily a prerequisite for public speaking; it is often an outcome of consistent practice, adequate preparation and repeated exposure.",
+        "Do not wait until fear disappears before accepting speaking opportunities. Start small, embrace constructive criticism, learn from your mistakes and progressively expand your comfort zone. Where anxiety is severe or persistent, professional psychological support may also be beneficial.",
+        "Great public speakers are not necessarily born; they are developed through spiritual composure, intellectual preparation, deliberate practice, perseverance and purposeful engagement.",
+        "#PublicSpeaking #Glossophobia #EffectiveCommunication #ConfidenceBuilding #LeadershipDevelopment #PersonalDevelopment #ProfessionalDevelopment #CommunicationSkills #AcademicLeadership #SpiritualIntelligence #EmotionalIntelligence #lifelonglearninglifetimeknowledge #lifelonglearning"
+      ],
+      "contentBlocks": [
+        {
+          "id": "blk-ffe-byline",
+          "type": "paragraph",
+          "text": "**Lukman Raimi, PhD, LL.M, MNIM**"
+        },
+        {
+          "id": "blk-ffe-intro-1",
+          "type": "paragraph",
+          "text": "As an educational administrator, public speaker, former deputy Imam at two higher education institutions, and lecturer with a cumulative experience spanning over 30 years, I have come to appreciate that effective public speaking is not necessarily an innate talent but a competence developed through continuous learning, deliberate practice and emotional self-regulation."
+        },
+        {
+          "id": "blk-ffe-intro-2",
+          "type": "paragraph",
+          "text": "Public speaking anxiety, commonly referred to as glossophobia, is a challenge experienced by many individuals, irrespective of their educational qualifications, professional accomplishments or intellectual capabilities. Even experienced speakers experience nervousness before addressing an audience."
+        },
+        {
+          "id": "blk-ffe-intro-3",
+          "type": "paragraph",
+          "text": "Drawing on my diverse experiences, I wish to share the eight practical strategies with individuals who experience anxiety or phobia associated with public speaking."
+        },
+        {
+          "id": "blk-ffe-1",
+          "type": "heading",
+          "text": "1. Seek Divine Assistance and Spiritual Composure"
+        },
+        {
+          "id": "blk-ffe-1-p1",
+          "type": "paragraph",
+          "text": "As a Muslim, I begin by seeking divine assistance, clarity of thought, eloquence and confidence. Spiritual preparation complements intellectual preparation and provides a sense of reassurance and emotional stability."
+        },
+        {
+          "id": "blk-ffe-1-p2",
+          "type": "paragraph",
+          "text": "**How:** At corporate, academic and secular events, I silently recite the supplication of Prophet Musa (AS):"
+        },
+        {
+          "id": "blk-ffe-1-q",
+          "type": "quote",
+          "text": "“My Lord, expand for me my chest, ease for me my task, and untie the knot from my tongue so that they may understand my speech.” (Qur’an 20:25–28).",
+          "quoteAttribution": "Qur’an 20:25–28"
+        },
+        {
+          "id": "blk-ffe-1-p3",
+          "type": "paragraph",
+          "text": "At Islamic events, I openly commence with Bismillahir-Rahmanir-Rahim, followed by the traditional Khutbatul Hajah. By the time I conclude the opening supplication, much of the initial nervousness has subsided. (Hahaha!)"
+        },
+        {
+          "id": "blk-ffe-2",
+          "type": "heading",
+          "text": "2. Reframe Nervousness as Positive Energy"
+        },
+        {
+          "id": "blk-ffe-2-p1",
+          "type": "paragraph",
+          "text": "A racing heartbeat, sweaty palms and heightened alertness are natural physiological responses to stressful situations. Rather than interpreting these reactions as signs of weakness or impending failure, regard them as indications of readiness and excitement."
+        },
+        {
+          "id": "blk-ffe-2-p2",
+          "type": "paragraph",
+          "text": "**How:** Replace negative thoughts such as “I am going to fail” with positive affirmations such as “I am prepared, knowledgeable and capable of delivering a meaningful presentation.” I can do it!"
+        },
+        {
+          "id": "blk-ffe-3",
+          "type": "heading",
+          "text": "3. Prepare Thoroughly Without Excessive Memorisation"
+        },
+        {
+          "id": "blk-ffe-3-p1",
+          "type": "paragraph",
+          "text": "Adequate preparation enhances intellectual confidence and reduces uncertainty. However, memorising an entire speech word for word may increase anxiety when a speaker forgets a particular sentence."
+        },
+        {
+          "id": "blk-ffe-3-p2",
+          "type": "paragraph",
+          "text": "**How:** Develop a structured outline comprising your introduction, key arguments, supporting examples and conclusion. Use brief notes or keywords to guide your presentation while maintaining flexibility and spontaneity."
+        },
+        {
+          "id": "blk-ffe-4",
+          "type": "heading",
+          "text": "4. Engage in Deliberate and Consistent Practice"
+        },
+        {
+          "id": "blk-ffe-4-p1",
+          "type": "paragraph",
+          "text": "Public speaking is a competence strengthened through repeated exposure and experiential learning. Regular practice gradually reduces apprehension and improves articulation, composure and delivery."
+        },
+        {
+          "id": "blk-ffe-4-p2",
+          "type": "paragraph",
+          "text": "**How:** Rehearse aloud while standing, practise before a mirror, record yourself using your mobile phone and seek constructive feedback from trusted colleagues, friends or family members. Progress gradually from small audiences to larger gatherings."
+        },
+        {
+          "id": "blk-ffe-5",
+          "type": "heading",
+          "text": "5. Regulate Your Breathing"
+        },
+        {
+          "id": "blk-ffe-5-p1",
+          "type": "paragraph",
+          "text": "Controlled breathing helps regulate physiological arousal, reduce anxiety and maintain emotional stability before and during presentations."
+        },
+        {
+          "id": "blk-ffe-5-p2",
+          "type": "paragraph",
+          "text": "**How:** Practise the box-breathing technique: inhale for four seconds, hold for four seconds, exhale for four seconds and hold for another four seconds. Repeat several times if comfortable. Alternatively, breathe slowly with a slightly longer exhalation."
+        },
+        {
+          "id": "blk-ffe-6",
+          "type": "heading",
+          "text": "6. Release Physical and Muscular Tension"
+        },
+        {
+          "id": "blk-ffe-6-p1",
+          "type": "paragraph",
+          "text": "Anxiety often manifests through muscular stiffness, trembling hands and restricted body movements. Physical relaxation can improve composure and facilitate natural delivery."
+        },
+        {
+          "id": "blk-ffe-6-p2",
+          "type": "paragraph",
+          "text": "**How:** Before your presentation, take a short walk, stretch gently, relax your shoulders and engage in light physical movements. Adopt an upright but relaxed posture when addressing your audience."
+        },
+        {
+          "id": "blk-ffe-7",
+          "type": "heading",
+          "text": "7. Prioritise the Audience and the Message"
+        },
+        {
+          "id": "blk-ffe-7-p1",
+          "type": "paragraph",
+          "text": "Excessive self-consciousness frequently intensifies public speaking anxiety. Effective communication requires shifting attention from personal insecurities to the value of the knowledge being communicated."
+        },
+        {
+          "id": "blk-ffe-7-p2",
+          "type": "paragraph",
+          "text": "**How:** Ask yourself: What knowledge am I sharing? What problem am I addressing? How will my audience benefit from this presentation? Maintain natural eye contact and concentrate on communicating value rather than seeking personal perfection."
+        },
+        {
+          "id": "blk-ffe-8",
+          "type": "heading",
+          "text": "8. Embrace Strategic Pauses and Silence"
+        },
+        {
+          "id": "blk-ffe-8-p1",
+          "type": "paragraph",
+          "text": "Silence is not necessarily an indication of incompetence or inadequate preparation. Strategic pauses are powerful rhetorical devices that enhance clarity, emphasis, audience engagement and comprehension."
+        },
+        {
+          "id": "blk-ffe-8-p2",
+          "type": "paragraph",
+          "text": "**How:** Pause briefly after communicating an important point, before introducing a new argument or thought. Avoid filling every moment of silence with unnecessary expressions such as “um,” “actually” or “you know.”"
+        },
+        {
+          "id": "blk-ffe-conc-h",
+          "type": "heading",
+          "text": "Concluding Reflection"
+        },
+        {
+          "id": "blk-ffe-conc-1",
+          "type": "paragraph",
+          "text": "The ultimate objective of public speaking is not perfection but effective communication, knowledge dissemination and meaningful audience engagement. Confidence is not necessarily a prerequisite for public speaking; it is often an outcome of consistent practice, adequate preparation and repeated exposure."
+        },
+        {
+          "id": "blk-ffe-conc-2",
+          "type": "paragraph",
+          "text": "Do not wait until fear disappears before accepting speaking opportunities. Start small, embrace constructive criticism, learn from your mistakes and progressively expand your comfort zone. Where anxiety is severe or persistent, professional psychological support may also be beneficial."
+        },
+        {
+          "id": "blk-ffe-conc-3",
+          "type": "paragraph",
+          "text": "Great public speakers are not necessarily born; they are developed through spiritual composure, intellectual preparation, deliberate practice, perseverance and purposeful engagement."
+        },
+        {
+          "id": "blk-ffe-tags",
+          "type": "paragraph",
+          "text": "#PublicSpeaking #Glossophobia #EffectiveCommunication #ConfidenceBuilding #LeadershipDevelopment #PersonalDevelopment #ProfessionalDevelopment #CommunicationSkills #AcademicLeadership #SpiritualIntelligence #EmotionalIntelligence #lifelonglearninglifetimeknowledge #lifelonglearning"
+        }
+      ],
+      "featuredImage": "/uploads/from-fear-to-eloquence-public-speaking-strategies.jpg",
+      "imageCaption": "From Fear to Eloquence: Eight Practical Strategies for Overcoming Public Speaking Anxiety and Building Confidence — By Lukman Raimi, PhD, LL.M, MNIM (D-Path to Jannah Media Hub).",
+      "authorId": "auth-lukman-raimi",
+      "authorName": "Lukman Raimi, PhD, LL.M, MNIM",
+      "publishedAt": "2026-11-24",
+      "updatedAt": "2026-11-24",
+      "artTheme": "campus",
+      "verification": "V",
+      "sourceName": "Lukman Raimi, PhD, LL.M, MNIM",
+      "status": "Published",
+      "featured": true,
+      "breaking": true,
+      "views": 315
+    },
+    {
       "id": "art-sb-cmp-2026-results",
       "slug": "sb-releases-2026-cmp-results-as-kwara-male-candidate-emerges-overall-best-winner-5752",
       "title": "SB Releases 2026 CMP Results As Kwara Male Candidate Emerges Overall Best Winner",
@@ -20,7 +261,7 @@
         "Habib, while announcing the results, said a total of 417 students participated in the examination across centres in Abuja, Kwara, Kano, Ondo and Osun States.",
         "Giving a breakdown of the performance, he disclosed that 54 candidates scored 50 per cent and above, comprising 36 candidates who scored between 50 and 59 per cent, 15 candidates who recorded between 60 and 69 per cent, and three candidates who scored between 70 and 100 per cent.",
         "He, however, noted that 277 candidates scored below 40 per cent, indicating the need for sustained efforts to improve students’ academic performance.",
-        "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers.",
+        "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers: [CHECK YOUR RESULT / VIEW RESULT PDF](https://drive.google.com/file/d/1iIgpYeM_ZpTGwqK3O1xXdrqL3Ux2JGgj/view?usp=drive_link).",
         "He explained that the examination, which assessed candidates in Mathematics and English Language, was designed to identify academically promising Muslim students and provide deserving candidates with scholarship opportunities.",
         "According to him, the programme remains part of the organisation’s commitment to promoting academic excellence, encouraging healthy intellectual competition and supporting the educational development of Muslim students.",
         "The examination was conducted through a Computer-Based Test (CBT) format, with questions prepared in line with the academic standards of the West African Examinations Council (WAEC) and the expected learning capacity of Senior Secondary School Three (SS3) students.",
@@ -63,7 +304,7 @@
         {
           "id": "blk-cmp-6",
           "type": "paragraph",
-          "text": "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers."
+          "text": "The CMP National Chairman advised candidates to check their individual results using their respective CMP registration numbers: [CHECK YOUR RESULT / VIEW RESULT PDF](https://drive.google.com/file/d/1iIgpYeM_ZpTGwqK3O1xXdrqL3Ux2JGgj/view?usp=drive_link)"
         },
         {
           "id": "blk-cmp-7",
@@ -89,6 +330,11 @@
           "id": "blk-cmp-11",
           "type": "paragraph",
           "text": "He had also emphasised that the Career Mentorship Programme was designed not only to reward outstanding academic performance but also to develop students’ intellectual abilities and prepare them for future academic and career challenges and also support students through extramural classes."
+        },
+        {
+          "id": "blk-cmp-12",
+          "type": "paragraph",
+          "text": "[CHECK YOUR RESULT / VIEW RESULT PDF](https://drive.google.com/file/d/1iIgpYeM_ZpTGwqK3O1xXdrqL3Ux2JGgj/view?usp=drive_link)"
         }
       ],
       "featuredImage": "/uploads/sb-cmp-2026-cbt-exam.jpg",
@@ -99,7 +345,8 @@
       "updatedAt": "2026-11-19",
       "artTheme": "campus",
       "verification": "V",
-      "sourceName": "Standard Bearers Islamic Organization (SB) / Career Mentorship Programme",
+      "sourceName": "CHECK YOUR RESULT / VIEW RESULT PDF",
+      "sourceUrl": "https://drive.google.com/file/d/1iIgpYeM_ZpTGwqK3O1xXdrqL3Ux2JGgj/view?usp=drive_link",
       "status": "Published",
       "featured": true,
       "breaking": true,
@@ -1255,6 +1502,14 @@
       "verifiedCredentials": "Official D2J Editorial Team"
     },
     {
+      "id": "auth-lukman-raimi",
+      "name": "Lukman Raimi, PhD, LL.M, MNIM",
+      "role": "Educational Administrator, Public Speaker & Lecturer",
+      "bio": "Dr. Lukman Raimi is an educational administrator, public speaker, former deputy Imam at two higher education institutions, and lecturer with over 30 years of cumulative academic and leadership experience.",
+      "avatarInitials": "L",
+      "verifiedCredentials": "PhD, LL.M, MNIM — Educational Administrator & Lecturer"
+    },
+    {
       "id": "auth-2",
       "name": "Demo Author",
       "role": "Staff Writer (Demo)",
@@ -1414,6 +1669,15 @@
   "storySubmissions": [],
   "contactSubmissions": [],
   "media": [
+    {
+      "id": "med-from-fear-to-eloquence",
+      "filename": "from-fear-to-eloquence-public-speaking-strategies.jpg",
+      "url": "/uploads/from-fear-to-eloquence-public-speaking-strategies.jpg",
+      "caption": "From Fear to Eloquence: Eight Practical Strategies for Overcoming Public Speaking Anxiety and Building Confidence — By Lukman Raimi, PhD, LL.M, MNIM",
+      "credit": "D-Path to Jannah Media Hub",
+      "uploadedAt": "2026-11-24",
+      "uploadedBy": "D2J Editorial Desk"
+    },
     {
       "id": "med-ui-unilag-1",
       "filename": "ui-unilag-masters-block-1.jpg",

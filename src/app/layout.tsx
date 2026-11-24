@@ -4,7 +4,10 @@ import { SvgDefs } from "@/components/SvgSprite";
 import { HeaderClient, NewsletterForm, Footer } from "@/components/HeaderFooter";
 import { getSiteSettings } from "@/lib/db";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://dpathtojannah.com";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.dpathtojannah.com").replace(
+  /\/+$/,
+  ""
+);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -23,15 +23,37 @@ const VERIFICATION_NOTES = {
   D: "Demo content written to test the layout. It is not real reporting.",
 };
 
+function renderInlineFormatting(segment: string, keyPrefix: string): React.ReactNode {
+  // Support **bold**, *bold*, and _italic_ inline markers safely without raw innerHTML
+  const inlineRegex = /\*\*([^*]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = inlineRegex.exec(segment)) !== null) {
+    if (m.index > last) {
+      parts.push(segment.slice(last, m.index));
+    }
+    if (m[1] || m[2]) {
+      parts.push(<strong key={`${keyPrefix}-b-${m.index}`}>{m[1] || m[2]}</strong>);
+    } else if (m[3]) {
+      parts.push(<em key={`${keyPrefix}-i-${m.index}`}>{m[3]}</em>);
+    }
+    last = inlineRegex.lastIndex;
+  }
+  if (last < segment.length) {
+    parts.push(segment.slice(last));
+  }
+  return parts.length > 0 ? parts : segment;
+}
+
 /**
- * Renders paragraph or quote text with clickable links:
+ * Renders paragraph or quote text with clickable links and inline bold/italic:
  * - Markdown links: `[Click here](https://example.com)`
  * - Bare URLs: `https://example.com` or `www.example.com`
  */
 export function renderRichTextWithLinks(text: string): React.ReactNode {
   if (!text) return null;
 
-  // Match either [label](url) OR bare http(s)://... or www....
   const tokenRegex =
     /\[([^\]]+)\]\(((?:https?:\/\/|www\.|\/)[^\s)]+)\)|((?:https?:\/\/|www\.)[^\s<]+[^<.,:;"')\]\s])/gi;
 
@@ -41,7 +63,9 @@ export function renderRichTextWithLinks(text: string): React.ReactNode {
 
   while ((match = tokenRegex.exec(text)) !== null) {
     if (match.index > lastIdx) {
-      nodes.push(text.slice(lastIdx, match.index));
+      nodes.push(
+        renderInlineFormatting(text.slice(lastIdx, match.index), `seg-${lastIdx}`)
+      );
     }
 
     const mdLabel = match[1];
@@ -74,10 +98,107 @@ export function renderRichTextWithLinks(text: string): React.ReactNode {
   }
 
   if (lastIdx < text.length) {
-    nodes.push(text.slice(lastIdx));
+    nodes.push(renderInlineFormatting(text.slice(lastIdx), `seg-${lastIdx}`));
   }
 
   return nodes.length > 0 ? nodes : text;
+}
+
+/**
+ * Splits a single block containing 1 to 50+ pasted paragraphs into proper semantic
+ * <p>, <h2>, <blockquote>, and <ul> elements with comfortable vertical spacing.
+ */
+export function renderMultiParagraphBlock(
+  rawText: string,
+  keyPrefix: string | number
+): React.ReactNode {
+  if (!rawText || !rawText.trim()) return null;
+
+  // Split by one or more line breaks so multi-paragraph pasted articles always separate cleanly
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = (idx: number) => {
+    if (listItems.length === 0) return;
+    elements.push(
+      <ul
+        key={`${keyPrefix}-ul-${idx}`}
+        style={{ margin: "0 0 1.2em", paddingLeft: "1.4em", lineHeight: 1.75 }}
+      >
+        {listItems.map((item, liIdx) => (
+          <li key={liIdx} style={{ marginBottom: "0.4em" }}>
+            {renderRichTextWithLinks(item)}
+          </li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  lines.forEach((line, idx) => {
+    // 1. Bullet list item (- item or • item)
+    if (/^([-•])\s+(.+)$/.test(line)) {
+      listItems.push(line.replace(/^[-•]\s+/, ""));
+      return;
+    }
+
+    flushList(idx);
+
+    // 2. Markdown heading (# Heading, ## Heading, ### Heading)
+    if (/^#{1,3}\s+(.+)$/.test(line)) {
+      const headingText = line.replace(/^#{1,3}\s+/, "");
+      elements.push(
+        <h2 key={`${keyPrefix}-h-${idx}`} style={{ marginTop: "1.4em", marginBottom: "0.5em" }}>
+          {renderRichTextWithLinks(headingText)}
+        </h2>
+      );
+      return;
+    }
+
+    // 3. Standalone short bold subheading (*Subheading* or **Subheading**)
+    if (
+      line.length <= 95 &&
+      /^(?:\*\*([^*]+)\*\*|\*([^*]+)\*)$/.test(line) &&
+      !/[.!?]$/.test(line.replace(/\*+/g, "").trim())
+    ) {
+      const headingText = line.replace(/^\*+|\*+$/g, "").trim();
+      elements.push(
+        <h2 key={`${keyPrefix}-bh-${idx}`} style={{ marginTop: "1.4em", marginBottom: "0.5em" }}>
+          {headingText}
+        </h2>
+      );
+      return;
+    }
+
+    // 4. Blockquote (> Quote text)
+    if (/^>\s*(.+)$/.test(line)) {
+      const quoteText = line.replace(/^>\s*/, "");
+      elements.push(
+        <blockquote key={`${keyPrefix}-q-${idx}`} style={{ margin: "1.2em 0" }}>
+          {renderRichTextWithLinks(quoteText)}
+        </blockquote>
+      );
+      return;
+    }
+
+    // 5. Standard paragraph with proper bottom spacing & readable line-height
+    elements.push(
+      <p
+        key={`${keyPrefix}-p-${idx}`}
+        style={{ margin: "0 0 1.15em", lineHeight: 1.78 }}
+      >
+        {renderRichTextWithLinks(line)}
+      </p>
+    );
+  });
+
+  flushList(lines.length);
+  return elements;
 }
 
 export function LiveArticleViewClient({
@@ -417,13 +538,13 @@ export function LiveArticleViewClient({
                     </figure>
                   );
                 }
-                return block.text ? (
-                  <p key={block.id || idx}>{renderRichTextWithLinks(block.text)}</p>
-                ) : null;
+                return block.text
+                  ? renderMultiParagraphBlock(block.text, block.id || idx)
+                  : null;
               })
-            : (article.body || []).map((paragraph, idx) => (
-                <p key={idx}>{renderRichTextWithLinks(paragraph)}</p>
-              ))}
+            : (article.body || []).map((paragraph, idx) =>
+                renderMultiParagraphBlock(paragraph, `body-${idx}`)
+              )}
 
           {sliderPhotos.length > 1 && (
             <ArticlePhotoCarousel photos={sliderPhotos} title={article.title} />

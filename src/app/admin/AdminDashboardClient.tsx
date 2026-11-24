@@ -750,11 +750,15 @@ export function AdminDashboardClient({
 
       const extractedParagraphs = cleanedBlocks
         .filter((b) => b.type === "paragraph" || b.type === "heading" || b.type === "quote")
-        .map((b) => (b.text || "").trim())
-        .filter(Boolean);
+        .flatMap((b) =>
+          (b.text || "")
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+        );
 
       const fallbackParagraphs = articleBodyText
-        .split(/\n\n+/)
+        .split(/\r?\n/)
         .map((p) => p.trim())
         .filter(Boolean);
 
@@ -1732,8 +1736,7 @@ export function AdminDashboardClient({
                                 }}
                               >
                                 <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                                  Tip: Any website URL (<code>https://...</code>) or{" "}
-                                  <code>[Text](https://...)</code> becomes a clickable link automatically.
+                                  Tip: You can paste an entire multi-paragraph article into one box—all paragraph breaks, headings, lists, and URLs (<code>https://...</code>) are preserved automatically.
                                 </span>
                                 <button
                                   type="button"
@@ -1777,17 +1780,20 @@ export function AdminDashboardClient({
                                 </button>
                               </div>
                               <textarea
-                                rows={4}
-                                placeholder="Write paragraph text here... (Paste any https:// link or click '🔗 Insert Clickable Link' above)"
+                                rows={7}
+                                placeholder="Paste your entire multi-paragraph article or write paragraph text here... (Paragraph spacing, headings, lists, and links are preserved automatically)"
                                 value={blk.text || ""}
                                 onChange={(e) => updateBlock(idx, { text: e.target.value })}
                                 style={{
                                   width: "100%",
+                                  minHeight: 150,
+                                  lineHeight: 1.65,
                                   padding: "10px 12px",
                                   borderRadius: 8,
                                   border: "1px solid var(--border)",
                                   font: "inherit",
                                   fontSize: 14,
+                                  resize: "vertical",
                                 }}
                               />
                             </div>

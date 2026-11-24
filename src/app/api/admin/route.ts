@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import {
   ensureDbSynced,
   writeDbAsync,
@@ -49,6 +50,23 @@ function slugify(input: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80);
+}
+
+function invalidatePublicCache(category?: string, slug?: string) {
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/news', 'page');
+    revalidatePath('/campus', 'page');
+    revalidatePath('/islam', 'page');
+    revalidatePath('/education', 'page');
+    revalidatePath('/opportunities', 'page');
+    revalidatePath('/sitemap.xml');
+    if (category && slug) {
+      revalidatePath(`/news/${category}/${slug}`, 'page');
+    }
+  } catch {
+    // ignore revalidation errors in non-request contexts
+  }
 }
 
 function appendActivityLog(
@@ -273,64 +291,6 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    // 0B. SYNC PERSISTED CMS SNAPSHOT (hydrates cold serverless container on reload / re-login / public view)
-    if (action === 'sync_cms_snapshot') {
-      const incomingSaved = Array.isArray(payload?.savedArticles)
-        ? (payload.savedArticles as Article[])
-        : [];
-      const incomingDeleted = Array.isArray(payload?.deletedArticleIds)
-        ? (payload.deletedArticleIds as string[])
-        : [];
-
-      if (!Array.isArray(db.deletedArticleIds)) {
-        db.deletedArticleIds = [];
-      }
-      for (const delId of incomingDeleted) {
-        if (delId && !db.deletedArticleIds.includes(delId)) {
-          db.deletedArticleIds.push(delId);
-        }
-      }
-
-      for (const art of incomingSaved) {
-        if (!art || !art.id) continue;
-        if (db.deletedArticleIds.includes(art.id)) continue;
-        const idx = db.articles.findIndex((a) => a.id === art.id);
-        if (idx >= 0) {
-          db.articles[idx] = { ...db.articles[idx], ...art };
-        } else {
-          db.articles.unshift(art);
-        }
-      }
-
-      if (db.deletedArticleIds.length > 0) {
-        const delSet = new Set(db.deletedArticleIds);
-        db.articles = db.articles.filter((a) => !delSet.has(a.id));
-      }
-
-      await writeDbAsync(db);
-      const res = NextResponse.json({
-        ok: true,
-        articles: db.articles,
-        deletedArticleIds: db.deletedArticleIds,
-      });
-
-      if (db.deletedArticleIds.length > 0) {
-        res.cookies.set(
-          DELETED_ARTICLES_COOKIE,
-          createDeletedArticlesToken(db.deletedArticleIds),
-          {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 60 * 60 * 24 * 365,
-          }
-        );
-      }
-
-      return res;
-    }
-
     // 0C. PUBLIC READER COMMENT SUBMISSION (shares same serverless instance as articles & admin moderation)
     if (action === 'submit_public_comment') {
       const articleId = String(payload?.articleId || '').trim();
@@ -436,6 +396,67 @@ export async function POST(req: NextRequest) {
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorised editorial access.' }, { status: 401 });
+    }
+
+    // 0B. SYNC PERSISTED CMS SNAPSHOT (requires authenticated staff session)
+    if (action === 'sync_cms_snapshot') {
+      const incomingSaved = Array.isArray(payload?.savedArticles)
+        ? (payload.savedArticles as Article[])
+        : [];
+      const incomingDeleted = Array.isArray(payload?.deletedArticleIds)
+        ? (payload.deletedArticleIds as string[])
+        : [];
+
+      if (!Array.isArray(db.deletedArticleIds)) {
+        db.deletedArticleIds = [];
+      }
+      if (canPublishContent(session.role, session.permissions)) {
+        for (const delId of incomingDeleted) {
+          if (delId && !db.deletedArticleIds.includes(delId)) {
+            db.deletedArticleIds.push(delId);
+          }
+        }
+      }
+
+      for (const art of incomingSaved) {
+        if (!art || !art.id) continue;
+        if (db.deletedArticleIds.includes(art.id)) continue;
+        const idx = db.articles.findIndex((a) => a.id === art.id);
+        if (idx >= 0) {
+          db.articles[idx] = { ...db.articles[idx], ...art };
+        } else {
+          db.articles.unshift(art);
+        }
+      }
+
+      if (db.deletedArticleIds.length > 0) {
+        const delSet = new Set(db.deletedArticleIds);
+        db.articles = db.articles.filter((a) => !delSet.has(a.id));
+      }
+
+      await writeDbAsync(db);
+      invalidatePublicCache();
+      const res = NextResponse.json({
+        ok: true,
+        articles: db.articles,
+        deletedArticleIds: db.deletedArticleIds,
+      });
+
+      if (db.deletedArticleIds.length > 0) {
+        res.cookies.set(
+          DELETED_ARTICLES_COOKIE,
+          createDeletedArticlesToken(db.deletedArticleIds),
+          {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+          }
+        );
+      }
+
+      return res;
     }
 
     // 1. CREATE OR UPDATE ARTICLE
@@ -626,13 +647,24 @@ export async function POST(req: NextRequest) {
         db.deletedArticleIds = db.deletedArticleIds.filter((d) => d !== savedArticle.id);
       }
 
-      await writeDbAsync(db);
+      const writeRes = await writeDbAsync(db);
+      if (writeRes.cloudConfigured && !writeRes.persistedToCloud) {
+        return NextResponse.json(
+          {
+            error:
+              'Database write failed: could not persist article to cloud database. Please check database connectivity and try again.',
+          },
+          { status: 500 }
+        );
+      }
+      invalidatePublicCache(savedArticle?.category, savedArticle?.slug);
       return NextResponse.json({
         ok: true,
         savedArticle,
         articles: db.articles,
         deletedArticleIds: db.deletedArticleIds || [],
         activityLogs: db.activityLogs,
+        persistedToCloud: writeRes.persistedToCloud,
       });
     }
 
@@ -684,7 +716,17 @@ export async function POST(req: NextRequest) {
         details: `Category: ${art.category}`,
       });
 
-      await writeDbAsync(db);
+      const writeRes = await writeDbAsync(db);
+      if (writeRes.cloudConfigured && !writeRes.persistedToCloud) {
+        return NextResponse.json(
+          {
+            error:
+              'Database write failed: could not persist status change to cloud database.',
+          },
+          { status: 500 }
+        );
+      }
+      invalidatePublicCache(art.category, art.slug);
       return NextResponse.json({
         ok: true,
         savedArticle: art,
@@ -722,7 +764,17 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await writeDbAsync(db);
+      const writeRes = await writeDbAsync(db);
+      if (writeRes.cloudConfigured && !writeRes.persistedToCloud) {
+        return NextResponse.json(
+          {
+            error:
+              'Database write failed: could not persist deletion to cloud database.',
+          },
+          { status: 500 }
+        );
+      }
+      invalidatePublicCache(target?.category, target?.slug);
       const res = NextResponse.json({
         ok: true,
         deletedId: String(payload.id),
