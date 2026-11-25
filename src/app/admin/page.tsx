@@ -63,6 +63,8 @@ export default async function AdminPage() {
           : (db.activityLogs || []).filter((l) => l.actorId === session.userId)
       }
       initialSettings={db.settings}
+      initialAdvertisements={db.advertisements || []}
+      initialAnalyticsRollups={db.analyticsRollups || []}
     />
   );
 }

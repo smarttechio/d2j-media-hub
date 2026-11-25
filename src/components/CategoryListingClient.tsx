@@ -11,6 +11,7 @@ import {
   getEffectiveFeaturedImage,
 } from "./ArticleCards";
 import { ArtIllustration } from "./SvgSprite";
+import { AdPlacementSlot } from "./AdPlacementSlot";
 
 export function CategoryListingClient({
   categorySlug,
@@ -148,6 +149,8 @@ export function CategoryListingClient({
         <h1>{categoryName}</h1>
         <p>{categoryDescription}</p>
       </div>
+
+      <AdPlacementSlot placement="category_page" categorySlug={categorySlug} />
 
       {allTopics.length > 1 && (
         <div className="tf" role="group" aria-label="Filter by topic">

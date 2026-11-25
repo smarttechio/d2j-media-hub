@@ -211,6 +211,9 @@ export type DashboardPermission =
   | "media"
   | "users"
   | "admin-reviews"
+  | "analytics"
+  | "advertisements"
+  | "seo-performance"
   | "settings";
 
 export const ALL_DASHBOARD_PERMISSIONS: DashboardPermission[] = [
@@ -227,6 +230,9 @@ export const ALL_DASHBOARD_PERMISSIONS: DashboardPermission[] = [
   "media",
   "users",
   "admin-reviews",
+  "analytics",
+  "advertisements",
+  "seo-performance",
   "settings",
 ];
 
@@ -248,6 +254,9 @@ export function getDefaultPermissionsForRole(role: UserRole): DashboardPermissio
         "contacts",
         "media",
         "admin-reviews",
+        "analytics",
+        "advertisements",
+        "seo-performance",
         "settings",
       ];
     case "EDITOR":
@@ -263,6 +272,8 @@ export function getDefaultPermissionsForRole(role: UserRole): DashboardPermissio
         "story-submissions",
         "contacts",
         "media",
+        "analytics",
+        "seo-performance",
       ];
     case "SCHOLAR":
       return ["overview", "ask-scholar", "approved-answers"];
@@ -306,6 +317,7 @@ export interface AdminActivityLog {
     | "category"
     | "author"
     | "media"
+    | "advertisement"
     | "settings";
   targetId?: string;
   targetTitle: string;
@@ -316,6 +328,63 @@ export interface AdminActivityLog {
   reviewedBySuperAdmin?: string;
   reviewedAt?: string;
   createdAt: string;
+}
+
+export type AdPlacement =
+  | "homepage_header"
+  | "homepage_between_sections"
+  | "article_top"
+  | "in_article"
+  | "article_bottom"
+  | "desktop_sidebar"
+  | "category_page"
+  | "mobile_responsive";
+
+export type AdStatus = "Active" | "Paused" | "Expired" | "Rejected";
+export type AdPaymentStatus = "Paid" | "Pending" | "Part-Paid" | "Complimentary";
+
+export interface Advertisement {
+  id: string;
+  title: string;
+  advertiserName: string;
+  bannerUrl: string;
+  destinationUrl: string;
+  placement: AdPlacement;
+  dimensions: "728x90" | "970x90" | "300x250" | "300x600" | "320x100";
+  labelType: "Advertisement" | "Sponsored";
+  targetCategories: string[]; // ['ALL'] or specific category slugs
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  status: AdStatus;
+  priceNgn: number;
+  paymentStatus: AdPaymentStatus;
+  impressions: number;
+  clicks: number;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyAnalyticsRollup {
+  date: string; // YYYY-MM-DD
+  pageViews: number;
+  uniqueVisitors: number;
+  articleViews: Record<string, number>;
+  sources: {
+    direct: number;
+    search: number;
+    social: number;
+    referral: number;
+  };
+  devices: {
+    mobile: number;
+    desktop: number;
+    tablet: number;
+  };
+  countries: Record<string, number>;
+  totalEngagementSeconds: number;
+  engagedSessions: number;
 }
 
 export interface SiteSettings {
@@ -335,6 +404,10 @@ export interface SiteSettings {
     x: string;
     whatsapp: string;
   };
+  showPublicArticleViews?: boolean;
+  ga4MeasurementId?: string;
+  adsenseEnabled?: boolean;
+  adsenseClientId?: string;
 }
 
 export interface DatabaseSchema {
@@ -350,6 +423,8 @@ export interface DatabaseSchema {
   media: MediaItem[];
   users: User[];
   activityLogs?: AdminActivityLog[];
+  advertisements?: Advertisement[];
+  analyticsRollups?: DailyAnalyticsRollup[];
   settings: SiteSettings;
 }
 
@@ -2127,6 +2202,26 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
   if (!Array.isArray(parsed.comments)) {
     parsed.comments = DEFAULT_COMMENTS;
   }
+  if (!Array.isArray(parsed.advertisements)) {
+    parsed.advertisements = [];
+  } else {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    parsed.advertisements = parsed.advertisements.map((ad) => {
+      if (ad.status === "Active" && ad.endDate && ad.endDate < todayIso) {
+        return { ...ad, status: "Expired" };
+      }
+      return ad;
+    });
+  }
+  if (!Array.isArray(parsed.analyticsRollups)) {
+    parsed.analyticsRollups = [];
+  }
+  if (parsed.settings && parsed.settings.showPublicArticleViews === undefined) {
+    parsed.settings.showPublicArticleViews = true;
+  }
+  if (parsed.settings && parsed.settings.adsenseEnabled === undefined) {
+    parsed.settings.adsenseEnabled = false;
+  }
   if (
     parsed.settings &&
     (parsed.settings.breakingNewsUrl === "/news/campus/mssn-lagos-new-leadership" ||
@@ -2347,6 +2442,31 @@ export function getCategoryBySlug(slug: string): Category | undefined {
 
 export function getSiteSettings(): SiteSettings {
   return readDb().settings;
+}
+
+export function getActiveAdvertisements(
+  placement?: AdPlacement,
+  categorySlug?: string
+): Advertisement[] {
+  const db = readDb();
+  const list = Array.isArray(db.advertisements) ? db.advertisements : [];
+  const todayIso = new Date().toISOString().slice(0, 10);
+  return list.filter((ad) => {
+    if (ad.status !== "Active") return false;
+    if (ad.startDate && ad.startDate > todayIso) return false;
+    if (ad.endDate && ad.endDate < todayIso) return false;
+    if (placement && ad.placement !== placement) return false;
+    if (
+      categorySlug &&
+      Array.isArray(ad.targetCategories) &&
+      ad.targetCategories.length > 0 &&
+      !ad.targetCategories.includes("ALL") &&
+      !ad.targetCategories.includes(categorySlug)
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export const getDb = readDb;

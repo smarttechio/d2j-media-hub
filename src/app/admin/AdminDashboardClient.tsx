@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type {
   AdminActivityLog,
+  AdStatus,
+  Advertisement,
   Article,
   ArticleBlockType,
   ArticleComment,
@@ -13,6 +15,7 @@ import type {
   Author,
   Category,
   ContactSubmission,
+  DailyAnalyticsRollup,
   DashboardPermission,
   MediaItem,
   Opportunity,
@@ -25,6 +28,12 @@ import type {
   VerificationType,
 } from "@/lib/db";
 import type { SessionPayload } from "@/lib/auth";
+import {
+  ArticleEditorSeoChecklist,
+  AdminAnalyticsTab,
+  AdminAdvertisementsTab,
+  AdminSeoPerformanceTab,
+} from "./AdminGrowthModulesClient";
 
 const ALL_CLIENT_PERMISSIONS: DashboardPermission[] = [
   "overview",
@@ -41,6 +50,9 @@ const ALL_CLIENT_PERMISSIONS: DashboardPermission[] = [
   "users",
   "admin-reviews",
   "settings",
+  "analytics",
+  "advertisements",
+  "seo-performance",
 ];
 
 function getDefaultPermissionsForRole(role: UserRole): DashboardPermission[] {
@@ -62,6 +74,9 @@ function getDefaultPermissionsForRole(role: UserRole): DashboardPermission[] {
         "media",
         "admin-reviews",
         "settings",
+        "analytics",
+        "advertisements",
+        "seo-performance",
       ];
     case "EDITOR":
       return [
@@ -76,6 +91,8 @@ function getDefaultPermissionsForRole(role: UserRole): DashboardPermission[] {
         "story-submissions",
         "contacts",
         "media",
+        "analytics",
+        "seo-performance",
       ];
     case "SCHOLAR":
       return ["overview", "ask-scholar", "approved-answers"];
@@ -98,7 +115,10 @@ type TabId =
   | "media"
   | "users"
   | "admin-reviews"
-  | "settings";
+  | "settings"
+  | "analytics"
+  | "advertisements"
+  | "seo-performance";
 
 const PERMISSION_LABELS: { id: DashboardPermission; label: string; desc: string }[] = [
   { id: "overview", label: "Dashboard Overview", desc: "View newsroom stats & Fast Category Finder" },
@@ -115,6 +135,9 @@ const PERMISSION_LABELS: { id: DashboardPermission; label: string; desc: string 
   { id: "users", label: "Manage Admins & Roles", desc: "Add staff/admins & assign access permissions" },
   { id: "admin-reviews", label: "Review Other Admins", desc: "Inspect & review other admins' work and activity logs" },
   { id: "settings", label: "Platform Settings", desc: "Edit site title, emails & breaking news ticker" },
+  { id: "analytics", label: "Website Analytics (GA4)", desc: "View real-time traffic, article views & engagement metrics" },
+  { id: "advertisements", label: "Advertisement Management", desc: "Create & schedule Naira-priced ad campaigns and banners" },
+  { id: "seo-performance", label: "SEO Performance & Search Console", desc: "Inspect Google Search Console rankings & editorial SEO audits" },
 ];
 
 interface CmsLocalSnapshot {
@@ -305,6 +328,8 @@ interface AdminDashboardProps {
   initialUsers: SafeUser[];
   initialActivityLogs?: AdminActivityLog[];
   initialSettings: SiteSettings;
+  initialAdvertisements?: Advertisement[];
+  initialAnalyticsRollups?: DailyAnalyticsRollup[];
 }
 
 export function AdminDashboardClient({
@@ -321,6 +346,8 @@ export function AdminDashboardClient({
   initialUsers,
   initialActivityLogs = [],
   initialSettings,
+  initialAdvertisements = [],
+  initialAnalyticsRollups = [],
 }: AdminDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -336,6 +363,8 @@ export function AdminDashboardClient({
   const [users, setUsers] = useState<SafeUser[]>(initialUsers);
   const [activityLogs, setActivityLogs] = useState<AdminActivityLog[]>(initialActivityLogs);
   const [settings, setSettings] = useState<SiteSettings>(initialSettings);
+  const [advertisements, setAdvertisements] = useState<Advertisement[]>(initialAdvertisements);
+  const [analyticsRollups, setAnalyticsRollups] = useState<DailyAnalyticsRollup[]>(initialAnalyticsRollups);
 
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [articleFilter, setArticleFilter] = useState<string>("ALL");
@@ -483,6 +512,8 @@ export function AdminDashboardClient({
         if (Array.isArray(data.users) && data.users.length > 0) setUsers(data.users);
         if (Array.isArray(data.activityLogs)) setActivityLogs(data.activityLogs);
         if (data.settings) setSettings(data.settings);
+        if (Array.isArray(data.advertisements)) setAdvertisements(data.advertisements);
+        if (Array.isArray(data.analyticsRollups)) setAnalyticsRollups(data.analyticsRollups);
       } catch {
         // Keep initial server props if background sync fails
       }
@@ -1150,6 +1181,13 @@ export function AdminDashboardClient({
                 ? ([["admin-reviews", `12. Review Other Admins (${activityLogs.length})`]] as const)
                 : []),
               ...(hasPerm("settings") ? ([["settings", "13. Site Settings"]] as const) : []),
+              ...(hasPerm("analytics") || canPublish ? ([["analytics", "14. Analytics (GA4)"]] as const) : []),
+              ...(hasPerm("advertisements") || canPublish
+                ? ([["advertisements", `15. Advertisements (${advertisements.length})`]] as const)
+                : []),
+              ...(hasPerm("seo-performance") || canPublish
+                ? ([["seo-performance", "16. SEO Performance"]] as const)
+                : []),
             ] as [TabId, string][]
           ).map(([id, label]) => (
             <button
@@ -2516,6 +2554,33 @@ export function AdminDashboardClient({
                       />
                     </div>
                   </div>
+
+                  {/* Lightweight Editorial SEO & Social Sharing Checklist */}
+                  <ArticleEditorSeoChecklist
+                    article={{
+                      ...editingArticle,
+                      contentBlocks: articleBlocks,
+                    }}
+                    bodyParagraphsCount={
+                      articleBlocks
+                        .filter((b) => b.type === "paragraph" || b.type === "heading" || b.type === "quote")
+                        .flatMap((b) =>
+                          (b.text || "")
+                            .split(/\r?\n/)
+                            .map((line) => line.trim())
+                            .filter(Boolean)
+                        ).length
+                    }
+                    hasInternalLink={Boolean(
+                      (editingArticle.sourceUrl && editingArticle.sourceUrl.trim()) ||
+                        articleBlocks.some(
+                          (b) =>
+                            /https?:\/\//i.test(b.text || "") ||
+                            /\[.+?\]\(.+?\)/.test(b.text || "") ||
+                            /dpathtojannah\.com/i.test(b.text || "")
+                        )
+                    )}
+                  />
 
                   {editorError && (
                     <div
@@ -4818,6 +4883,31 @@ export function AdminDashboardClient({
                 </div>
               </div>
 
+              <div className="grid-2">
+                <div className="f-row">
+                  <label>Google Analytics 4 Measurement ID</label>
+                  <input
+                    type="text"
+                    placeholder="G-XXXXXXXXXX"
+                    value={settings.ga4MeasurementId || ""}
+                    onChange={(e) => setSettings({ ...settings, ga4MeasurementId: e.target.value })}
+                  />
+                </div>
+                <div className="f-row">
+                  <label>Public Article View Counter</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={settings.showPublicArticleViews !== false}
+                      onChange={(e) =>
+                        setSettings({ ...settings, showPublicArticleViews: e.target.checked })
+                      }
+                    />
+                    Show view counts on public news articles
+                  </label>
+                </div>
+              </div>
+
               {canPublish && (
                 <button type="submit" className="btn btn-primary">
                   Save Site Settings
@@ -4825,6 +4915,72 @@ export function AdminDashboardClient({
               )}
             </form>
           </div>
+        )}
+
+        {/* TAB 14: WEBSITE ANALYTICS (GA4 + INTERNAL REAL-TIME TRAFFIC) */}
+        {activeTab === "analytics" && (
+          <AdminAnalyticsTab
+            articles={articles}
+            initialRollups={analyticsRollups}
+            settings={settings}
+            canPublish={canPublish}
+            onSaveSettings={async (patch) => {
+              const nextSettings = { ...settings, ...patch };
+              const data = await apiAction("save_settings", nextSettings as unknown as Record<string, unknown>);
+              if (data.settings) setSettings(data.settings);
+              notify("Analytics & public view counter settings saved.");
+            }}
+          />
+        )}
+
+        {/* TAB 15: ADVERTISEMENT MANAGEMENT */}
+        {activeTab === "advertisements" && (
+          <AdminAdvertisementsTab
+            advertisements={advertisements}
+            categories={categories}
+            media={media}
+            settings={settings}
+            uploadingMedia={uploadingMedia}
+            onUploadFile={handleUploadFile}
+            onSaveAd={async (payload) => {
+              const data = await apiAction("save_advertisement", payload as Record<string, unknown>);
+              if (Array.isArray(data.advertisements)) setAdvertisements(data.advertisements);
+              notify(`Advertisement "${payload.title}" saved.`);
+            }}
+            onUpdateAdStatus={async (id, status: AdStatus) => {
+              const data = await apiAction("update_advertisement_status", { id, status });
+              if (Array.isArray(data.advertisements)) setAdvertisements(data.advertisements);
+              notify(`Advertisement status updated to ${status}.`);
+            }}
+            onDeleteAd={async (id, title) => {
+              if (
+                typeof window !== "undefined" &&
+                !window.confirm(`Delete advertisement "${title}" permanently?`)
+              ) {
+                return;
+              }
+              const data = await apiAction("delete_advertisement", { id });
+              if (Array.isArray(data.advertisements)) setAdvertisements(data.advertisements);
+              notify(`Advertisement "${title}" deleted.`);
+            }}
+            onSaveSettings={async (patch) => {
+              const nextSettings = { ...settings, ...patch };
+              const data = await apiAction("save_settings", nextSettings as unknown as Record<string, unknown>);
+              if (data.settings) setSettings(data.settings);
+              notify("AdSense settings updated.");
+            }}
+          />
+        )}
+
+        {/* TAB 16: SEO PERFORMANCE & GOOGLE SEARCH CONSOLE */}
+        {activeTab === "seo-performance" && (
+          <AdminSeoPerformanceTab
+            articles={articles}
+            onEditArticle={(art) => {
+              setActiveTab("articles");
+              startEditArticle(art);
+            }}
+          />
         )}
       </div>
     </main>

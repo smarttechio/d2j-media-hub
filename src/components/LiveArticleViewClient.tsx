@@ -16,6 +16,7 @@ import {
   ArticlePhotoCarousel,
   type SliderPhotoItem,
 } from "./FeaturedSliderClient";
+import { AdPlacementSlot } from "./AdPlacementSlot";
 
 const VERIFICATION_NOTES = {
   V: "Verified: the source page was opened and read by our editorial desk.",
@@ -224,6 +225,8 @@ export function LiveArticleViewClient({
   const [comments, setComments] = useState<Omit<ArticleComment, "authorEmail">[]>(initialComments);
   const [related, setRelated] = useState<Article[]>(initialRelated);
   const [loadingLive, setLoadingLive] = useState(!initialArticle);
+  const [showPublicViews, setShowPublicViews] = useState<boolean>(true);
+  const [liveViews, setLiveViews] = useState<number>(initialArticle?.views || 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,6 +280,12 @@ export function LiveArticleViewClient({
           const data = await res.json();
           if (!cancelled && data.article) {
             setArticle(data.article);
+            if (typeof data.article.views === "number") {
+              setLiveViews(data.article.views);
+            }
+          }
+          if (!cancelled && data.settings && data.settings.showPublicArticleViews !== undefined) {
+            setShowPublicViews(Boolean(data.settings.showPublicArticleViews));
           }
           if (!cancelled && Array.isArray(data.comments)) {
             setComments(data.comments);
@@ -299,6 +308,27 @@ export function LiveArticleViewClient({
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (!article?.id || article.verification === "D") return;
+    fetch("/api/analytics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType: "pageview",
+        pathname: `/news/${categorySlug}/${article.slug}`,
+        articleId: article.id,
+        referrer: typeof document !== "undefined" ? document.referrer : "",
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.views === "number") {
+          setLiveViews(d.views);
+        }
+      })
+      .catch(() => null);
+  }, [article?.id, article?.slug, article?.verification, categorySlug]);
 
   if (!article) {
     if (loadingLive) {
@@ -390,10 +420,15 @@ export function LiveArticleViewClient({
                 : `Published ${formatDisplayDate(article.publishedAt)} · Updated ${formatDisplayDate(article.updatedAt)}`}
               <br />
               {Math.max(2, Math.ceil((article.body || []).join(" ").split(" ").length / 180))} min read
+              {showPublicViews && article.verification !== "D" && (
+                <span> · {(liveViews || article.views || 1).toLocaleString()} views</span>
+              )}
             </div>
             <ShareRow title={article.title} />
           </div>
         </header>
+
+        <AdPlacementSlot placement="article_top" categorySlug={categorySlug} />
 
         <figure className="fi">
           <div className={`art a-${article.artTheme}`}>
@@ -550,6 +585,8 @@ export function LiveArticleViewClient({
             <ArticlePhotoCarousel photos={sliderPhotos} title={article.title} />
           )}
 
+          <AdPlacementSlot placement="in_article" categorySlug={categorySlug} />
+
           {article.sourceUrl && (
             <p>
               <a
@@ -598,6 +635,8 @@ export function LiveArticleViewClient({
               </p>
             </div>
           </div>
+
+          <AdPlacementSlot placement="article_bottom" categorySlug={categorySlug} />
 
           <ArticleCommentsClient
             articleId={article.id}

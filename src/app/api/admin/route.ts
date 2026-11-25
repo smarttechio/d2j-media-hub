@@ -4,8 +4,13 @@ import {
   ensureDbSynced,
   writeDbAsync,
   hashPassword,
+  getActiveAdvertisements,
   Article,
   ArticleStatus,
+  Advertisement,
+  AdPlacement,
+  AdStatus,
+  AdPaymentStatus,
   Opportunity,
   ScholarQAStatus,
   StorySubmissionStatus,
@@ -159,6 +164,9 @@ export async function GET(req: NextRequest) {
         opportunities: db.opportunities.filter((o) => o.workflowStatus === 'Published'),
         categories: db.categories,
         settings: db.settings,
+        advertisements: getActiveAdvertisements().map(
+          ({ priceNgn: _p, paymentStatus: _ps, notes: _n, createdBy: _cb, ...pubAd }) => pubAd
+        ),
       },
       { headers: NO_CACHE_HEADERS }
     );
@@ -209,6 +217,14 @@ export async function GET(req: NextRequest) {
     activityLogs: canReviewOtherAdmins(session.role, session.permissions)
       ? db.activityLogs || []
       : (db.activityLogs || []).filter((l) => l.actorId === session.userId),
+    advertisements:
+      hasPermission(session, 'advertisements') || canPublishContent(session.role, session.permissions)
+        ? db.advertisements || []
+        : [],
+    analyticsRollups:
+      hasPermission(session, 'analytics') || canPublishContent(session.role, session.permissions)
+        ? db.analyticsRollups || []
+        : [],
     settings: db.settings,
   });
 }
@@ -1602,6 +1618,199 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         settings: db.settings,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    // 11. ADVERTISEMENT MANAGEMENT (CREATE / UPDATE / PAUSE / ACTIVATE / DELETE)
+    if (action === 'save_advertisement') {
+      if (
+        !hasPermission(session, 'advertisements') &&
+        !canPublishContent(session.role, session.permissions)
+      ) {
+        return NextResponse.json(
+          { error: 'Only authorised Administrators and Editors can manage advertisements.' },
+          { status: 403 }
+        );
+      }
+
+      const {
+        id,
+        title,
+        advertiserName,
+        bannerUrl,
+        destinationUrl,
+        placement,
+        dimensions,
+        labelType,
+        targetCategories,
+        startDate,
+        endDate,
+        status,
+        priceNgn,
+        paymentStatus,
+        notes,
+      } = payload as Partial<Advertisement>;
+
+      if (!title?.trim() || !advertiserName?.trim() || !bannerUrl?.trim() || !destinationUrl?.trim()) {
+        return NextResponse.json(
+          {
+            error:
+              'Please provide the campaign title, advertiser name, banner image, and destination link.',
+          },
+          { status: 400 }
+        );
+      }
+
+      let cleanDestUrl = destinationUrl.trim();
+      if (!/^https?:\/\//i.test(cleanDestUrl) && !cleanDestUrl.startsWith('/')) {
+        cleanDestUrl = `https://${cleanDestUrl}`;
+      }
+
+      if (!Array.isArray(db.advertisements)) {
+        db.advertisements = [];
+      }
+
+      const nowIso = new Date().toISOString().slice(0, 10);
+      const existingIdx = id ? db.advertisements.findIndex((a) => a.id === id) : -1;
+
+      if (existingIdx >= 0) {
+        const cur = db.advertisements[existingIdx];
+        db.advertisements[existingIdx] = {
+          ...cur,
+          title: title.trim(),
+          advertiserName: advertiserName.trim(),
+          bannerUrl: bannerUrl.trim(),
+          destinationUrl: cleanDestUrl,
+          placement: (placement as AdPlacement) || cur.placement,
+          dimensions: dimensions || cur.dimensions,
+          labelType: labelType || cur.labelType,
+          targetCategories:
+            Array.isArray(targetCategories) && targetCategories.length > 0
+              ? targetCategories
+              : cur.targetCategories,
+          startDate: startDate || cur.startDate,
+          endDate: endDate || cur.endDate,
+          status: (status as AdStatus) || cur.status,
+          priceNgn: Number(priceNgn ?? cur.priceNgn ?? 0),
+          paymentStatus: (paymentStatus as AdPaymentStatus) || cur.paymentStatus,
+          notes: notes !== undefined ? notes : cur.notes,
+          updatedAt: nowIso,
+        };
+
+        appendActivityLog(db, session, {
+          action: 'Updated Advertisement Campaign',
+          targetType: 'advertisement',
+          targetId: cur.id,
+          targetTitle: `${title.trim()} (${advertiserName.trim()})`,
+          statusChange: db.advertisements[existingIdx].status,
+          details: `Placement: ${db.advertisements[existingIdx].placement} · ₦${Number(priceNgn ?? cur.priceNgn ?? 0).toLocaleString()} (${db.advertisements[existingIdx].paymentStatus})`,
+        });
+      } else {
+        const newAd: Advertisement = {
+          id: `ad-${Date.now()}`,
+          title: title.trim(),
+          advertiserName: advertiserName.trim(),
+          bannerUrl: bannerUrl.trim(),
+          destinationUrl: cleanDestUrl,
+          placement: (placement as AdPlacement) || 'homepage_header',
+          dimensions: dimensions || '728x90',
+          labelType: labelType || 'Advertisement',
+          targetCategories:
+            Array.isArray(targetCategories) && targetCategories.length > 0
+              ? targetCategories
+              : ['ALL'],
+          startDate: startDate || nowIso,
+          endDate:
+            endDate ||
+            new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          status: (status as AdStatus) || 'Active',
+          priceNgn: Number(priceNgn || 0),
+          paymentStatus: (paymentStatus as AdPaymentStatus) || 'Pending',
+          impressions: 0,
+          clicks: 0,
+          notes: notes || '',
+          createdBy: session.name,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        db.advertisements.unshift(newAd);
+
+        appendActivityLog(db, session, {
+          action: 'Created Advertisement Campaign',
+          targetType: 'advertisement',
+          targetId: newAd.id,
+          targetTitle: `${newAd.title} (${newAd.advertiserName})`,
+          statusChange: `New → ${newAd.status}`,
+          details: `Placement: ${newAd.placement} · ₦${newAd.priceNgn.toLocaleString()} (${newAd.paymentStatus})`,
+        });
+      }
+
+      await writeDbAsync(db);
+      invalidatePublicCache();
+      return NextResponse.json({
+        ok: true,
+        advertisements: db.advertisements,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    if (action === 'update_advertisement_status') {
+      if (
+        !hasPermission(session, 'advertisements') &&
+        !canPublishContent(session.role, session.permissions)
+      ) {
+        return NextResponse.json({ error: 'Unauthorised.' }, { status: 403 });
+      }
+      const { id, status } = payload as { id: string; status: AdStatus };
+      if (!Array.isArray(db.advertisements)) db.advertisements = [];
+      const ad = db.advertisements.find((a) => a.id === id);
+      if (!ad) return NextResponse.json({ error: 'Advertisement not found.' }, { status: 404 });
+      const prev = ad.status;
+      ad.status = status;
+      ad.updatedAt = new Date().toISOString().slice(0, 10);
+
+      appendActivityLog(db, session, {
+        action: `Changed Advertisement Status to ${status}`,
+        targetType: 'advertisement',
+        targetId: ad.id,
+        targetTitle: `${ad.title} (${ad.advertiserName})`,
+        statusChange: `${prev} → ${status}`,
+      });
+
+      await writeDbAsync(db);
+      invalidatePublicCache();
+      return NextResponse.json({
+        ok: true,
+        advertisements: db.advertisements,
+        activityLogs: db.activityLogs,
+      });
+    }
+
+    if (action === 'delete_advertisement') {
+      if (
+        !hasPermission(session, 'advertisements') &&
+        !canPublishContent(session.role, session.permissions)
+      ) {
+        return NextResponse.json({ error: 'Unauthorised.' }, { status: 403 });
+      }
+      if (!Array.isArray(db.advertisements)) db.advertisements = [];
+      const target = db.advertisements.find((a) => a.id === payload?.id);
+      db.advertisements = db.advertisements.filter((a) => a.id !== payload?.id);
+      if (target) {
+        appendActivityLog(db, session, {
+          action: 'Deleted Advertisement Campaign',
+          targetType: 'advertisement',
+          targetId: target.id,
+          targetTitle: `${target.title} (${target.advertiserName})`,
+          statusChange: `${target.status} → Deleted`,
+        });
+      }
+      await writeDbAsync(db);
+      invalidatePublicCache();
+      return NextResponse.json({
+        ok: true,
+        advertisements: db.advertisements,
         activityLogs: db.activityLogs,
       });
     }

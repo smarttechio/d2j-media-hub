@@ -11,6 +11,7 @@ import {
 } from "./ArticleCards";
 import { FeaturedStoriesCarousel } from "./FeaturedSliderClient";
 import { ArtIllustration } from "./SvgSprite";
+import { AdPlacementSlot } from "./AdPlacementSlot";
 
 interface LocalSnap {
   savedArticles?: Article[];
@@ -182,6 +183,7 @@ export function LiveHomeViewClient({
   return (
     <>
       <div className="wrap">
+        <AdPlacementSlot placement="homepage_header" />
         <div className="stat" style={{ marginTop: 18 }}>
           <b>Editorial Verification</b> Reports marked{" "}
           <span className="tg A">Verified source</span> or{" "}
@@ -283,8 +285,11 @@ export function LiveHomeViewClient({
                   <span>{art.title}</span>
                 </Link>
               ))}
+              <AdPlacementSlot placement="desktop_sidebar" style={{ marginTop: 18 }} />
             </aside>
           </div>
+          <AdPlacementSlot placement="homepage_between_sections" />
+          <AdPlacementSlot placement="mobile_responsive" />
         </section>
       </div>
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SvgDefs } from "@/components/SvgSprite";
 import { HeaderClient, NewsletterForm, Footer } from "@/components/HeaderFooter";
+import { PageAnalyticsTracker } from "@/components/PageAnalyticsTracker";
 import { ensureDbSynced, getSiteSettings } from "@/lib/db";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.dpathtojannah.com").replace(
@@ -70,6 +71,15 @@ export default async function RootLayout({
         />
       </head>
       <body>
+        <PageAnalyticsTracker
+          ga4MeasurementId={
+            process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID || settings.ga4MeasurementId
+          }
+          adsenseEnabled={settings.adsenseEnabled}
+          adsenseClientId={
+            process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || settings.adsenseClientId
+          }
+        />
         <SvgDefs />
         <HeaderClient
           breakingEnabled={settings.breakingNewsEnabled}
