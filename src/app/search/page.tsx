@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import {
+  ensureDbSynced,
   getPublishedArticles,
   getPublishedOpportunities,
   getPublishedScholarAnswers,
@@ -22,6 +23,7 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q = "" } = await searchParams;
+  await ensureDbSynced();
   const articles = getPublishedArticles();
   const opportunities = getPublishedOpportunities();
   const qas = getPublishedScholarAnswers();

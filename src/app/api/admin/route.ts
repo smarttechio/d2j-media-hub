@@ -45,11 +45,29 @@ const FALLBACK_ADMIN_PASSWORD_HASHES = new Set([
 ]);
 
 function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
+  return (
+    input
+      .toLowerCase()
+      .replace(/['’‘`]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 140) || 'article'
+  );
+}
+
+function generateUniqueArticleSlug(title: string, existingArticles: Article[], currentId?: string): string {
+  const base = slugify(title || 'untitled-article');
+  const taken = new Set(
+    existingArticles
+      .filter((a) => !currentId || a.id !== currentId)
+      .map((a) => a.slug)
+  );
+  if (!taken.has(base)) return base;
+  let counter = 2;
+  while (taken.has(`${base}-${counter}`)) {
+    counter += 1;
+  }
+  return `${base}-${counter}`;
 }
 
 function invalidatePublicCache(category?: string, slug?: string) {
@@ -113,13 +131,15 @@ export async function GET(req: NextRequest) {
       .filter((a) => a.status === 'Published' && a.verification !== 'D' && !allDelIds.has(a.id))
       .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
     const slug = req.nextUrl.searchParams.get('slug');
-    const baseSlug = slug ? slug.replace(/-\d{4}$/, '') : '';
+    const normalizeSlug = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/-\d{4}$/, '')
+        .replace(/da-wah/g, 'dawah');
+    const targetNorm = slug ? normalizeSlug(slug) : '';
     const matchedArticle = slug
       ? publishedArticles.find(
-          (a) =>
-            a.slug === slug ||
-            a.slug === baseSlug ||
-            a.slug.replace(/-\d{4}$/, '') === baseSlug
+          (a) => a.slug === slug || normalizeSlug(a.slug) === targetNorm
         ) || null
       : null;
     const approvedComments = (db.comments || []).filter((c) => c.status === 'Approved');
@@ -542,7 +562,7 @@ export async function POST(req: NextRequest) {
         db.articles[existingIdx] = {
           ...current,
           title: title ?? current.title,
-          slug: title ? slugify(title) : current.slug,
+          slug: title ? generateUniqueArticleSlug(title, db.articles, current.id) : current.slug,
           summary: summary ?? current.summary,
           category: category ?? current.category,
           tags: Array.isArray(tags) ? tags : current.tags,
@@ -592,7 +612,7 @@ export async function POST(req: NextRequest) {
       } else {
         const newArticle: Article = {
           id: `art-${Date.now()}`,
-          slug: `${slugify(title || 'untitled-article')}-${Date.now().toString().slice(-4)}`,
+          slug: generateUniqueArticleSlug(title || 'untitled-article', db.articles),
           title: String(title || 'Untitled Article'),
           summary: String(summary || ''),
           body:
@@ -1061,7 +1081,7 @@ export async function POST(req: NextRequest) {
         const nowDate = new Date().toISOString().slice(0, 10);
         const draftArt: Article = {
           id: `art-${Date.now()}`,
-          slug: `${slugify(sub.headline)}-${Date.now().toString().slice(-4)}`,
+          slug: generateUniqueArticleSlug(sub.headline, db.articles),
           title: sub.headline,
           summary: sub.summary,
           body: sub.body.split(/\n\n+/).filter(Boolean),

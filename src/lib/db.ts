@@ -463,6 +463,61 @@ const DEMO_BODY = [
 
 const DEFAULT_ARTICLES: Article[] = [
   {
+    id: "art-1795602609830",
+    slug: "three-markazud-dawah-members-excel-as-pcn-inducts-139-oau-pharmacy-graduates",
+    title: "Three Markazud-Da’wah Members Excel As PCN Inducts 139 OAU Pharmacy Graduates",
+    category: "campus",
+    tags: [
+      "Campus News",
+      "Student Achievements",
+      "Campus Organisations",
+      "OAU Ile-Ife",
+      "Markazud-Da’wah",
+      "Pharmacy Council of Nigeria",
+    ],
+    summary:
+      "Three members of Markazud-Da’wah Wa Thaqafatil-Islamiyyah have distinguished themselves academically as the Pharmacy Council of Nigeria (PCN) inducted 139 pharmacy graduates of Obafemi Awolowo University (OAU), Ile-Ife, Osun State, into the pharmacy profession.",
+    body: [
+      "The induction ceremony, held on Tuesday at the university campus in Ile-Ife, marked a significant milestone in the academic and professional journeys of the graduates as they formally joined the pharmacy profession.",
+      "The three outstanding graduates are Tayo Sofiyyah, Eniola Jamiu and Abojututu Khadijah, who have all played active leadership roles in Markazud-Da’wah, an Islamic organisation known for its religious, educational and social activities.",
+      "Tayo Sofiyyah, a former Female Coordinator of the organisation, and Eniola Jamiu, a former Deputy Coordinator, both graduated with distinctions, demonstrating exceptional academic performance throughout their pharmacy studies.",
+      "Similarly, Abojututu Khadijah, who previously served as Chairman of the Sisters Awareness Programme (SAP), a committee under Markazud-Da’wah, successfully completed her pharmacy programme with a pass.",
+      "Their academic accomplishments have been described as a source of pride and encouragement to members of the organisation, particularly young Muslim students, as they demonstrate the importance of combining religious commitment, leadership responsibilities and academic excellence.",
+      "Their successful induction into the pharmacy profession marks the beginning of a new chapter in their careers, with expectations that they will contribute meaningfully to healthcare delivery and pharmaceutical practice in Nigeria.",
+    ],
+    contentBlocks: [
+      {
+        id: "blk-1795601588108-1g36",
+        type: "paragraph",
+        text: "The induction ceremony, held on Tuesday at the university campus in Ile-Ife, marked a significant milestone in the academic and professional journeys of the graduates as they formally joined the pharmacy profession.\n\nThe three outstanding graduates are Tayo Sofiyyah, Eniola Jamiu and Abojututu Khadijah, who have all played active leadership roles in Markazud-Da’wah, an Islamic organisation known for its religious, educational and social activities.",
+      },
+      {
+        id: "blk-1795602424877-zd9o",
+        type: "paragraph",
+        text: "Tayo Sofiyyah, a former Female Coordinator of the organisation, and Eniola Jamiu, a former Deputy Coordinator, both graduated with distinctions, demonstrating exceptional academic performance throughout their pharmacy studies.\n\nSimilarly, Abojututu Khadijah, who previously served as Chairman of the Sisters Awareness Programme (SAP), a committee under Markazud-Da’wah, successfully completed her pharmacy programme with a pass.",
+      },
+      {
+        id: "blk-1795602536268-xihq",
+        type: "paragraph",
+        text: "Their academic accomplishments have been described as a source of pride and encouragement to members of the organisation, particularly young Muslim students, as they demonstrate the importance of combining religious commitment, leadership responsibilities and academic excellence.\n\nTheir successful induction into the pharmacy profession marks the beginning of a new chapter in their careers, with expectations that they will contribute meaningfully to healthcare delivery and pharmaceutical practice in Nigeria.",
+      },
+    ],
+    featuredImage: "/uploads/markazud-dawah-oau-pharmacy-graduates.jpg",
+    imageCaption:
+      "Three Markazud-Da’wah Wa Thaqafatil-Islamiyyah members — Tayo Sofiyyah, Eniola Jamiu, and Abojututu Khadijah — inducted into the pharmacy profession at Obafemi Awolowo University (OAU), Ile-Ife.",
+    authorId: "usr-sodiq",
+    authorName: "Sodiq Lawal",
+    publishedAt: "2026-11-25",
+    updatedAt: "2026-11-25",
+    artTheme: "campus",
+    verification: "V",
+    sourceName: "Markazud-Da’wah Wa Thaqafatil-Islamiyyah / OAU Campus Desk",
+    status: "Published",
+    featured: true,
+    breaking: true,
+    views: 245,
+  },
+  {
     id: "art-from-fear-to-eloquence-lukman-raimi",
     slug: "from-fear-to-eloquence-eight-practical-strategies-for-overcoming-public-speaking-anxiety-and-building-confidence",
     title:
@@ -1962,6 +2017,7 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
   }
   if (Array.isArray(parsed.articles)) {
     for (const seedId of [
+      "art-1795602609830",
       "art-from-fear-to-eloquence-lukman-raimi",
       "art-sb-cmp-2026-results",
       "art-back-to-campus-avoid-distractions-2026",
@@ -1973,6 +2029,12 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
       const existingArt = parsed.articles.find((a) => a.id === seedId);
       if (!existingArt && !parsed.deletedArticleIds.includes(seedId)) {
         parsed.articles = [seedArt, ...parsed.articles];
+      } else if (existingArt && seedId === "art-1795602609830") {
+        existingArt.slug = seedArt.slug;
+        existingArt.featured = true;
+        if (!existingArt.featuredImage || existingArt.featuredImage.startsWith("data:image/")) {
+          existingArt.featuredImage = seedArt.featuredImage;
+        }
       } else if (existingArt && seedId === "art-sb-cmp-2026-results") {
         existingArt.slug = seedArt.slug;
         existingArt.category = seedArt.category;
@@ -2006,6 +2068,8 @@ function normalizeDatabaseSchema(parsed: DatabaseSchema): DatabaseSchema {
       const delSet = new Set(parsed.deletedArticleIds);
       parsed.articles = parsed.articles.filter((a) => !delSet.has(a.id));
     }
+    // Deduplicate older auto-suffixed duplicate of From Fear to Eloquence (art-1795521295139)
+    parsed.articles = parsed.articles.filter((a) => a.id !== "art-1795521295139");
   }
   if (Array.isArray(parsed.scholarQuestions)) {
     parsed.scholarQuestions = parsed.scholarQuestions.map((q) => {
@@ -2219,13 +2283,18 @@ export function getPublishedArticleBySlug(slug: string): Article | undefined {
     (a) => a.slug === slug && a.status === "Published" && a.verification !== "D"
   );
   if (exact) return exact;
-  // Also allow matching without or with trailing 4-digit timestamp suffix
-  const baseSlug = slug.replace(/-\d{4}$/, "");
+  // Also allow matching without or with trailing 4-digit timestamp suffix or hyphenated da-wah vs dawah
+  const normalizeSlug = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/-\d{4}$/, "")
+      .replace(/da-wah/g, "dawah");
+  const targetNorm = normalizeSlug(slug);
   return db.articles.find(
     (a) =>
       a.status === "Published" &&
       a.verification !== "D" &&
-      (a.slug === baseSlug || a.slug.replace(/-\d{4}$/, "") === baseSlug)
+      normalizeSlug(a.slug) === targetNorm
   );
 }
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  ensureDbSynced,
   getPublishedScholarAnswerBySlug,
   getPublishedScholarAnswers,
 } from "@/lib/db";
@@ -16,6 +17,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  await ensureDbSynced();
   const qa = getPublishedScholarAnswerBySlug(slug);
   if (!qa) return { title: "Q&A Not Found" };
   const canonicalPath = `/ask-a-scholar/answers/${qa.slug}`;
@@ -47,6 +49,7 @@ export default async function ScholarAnswerDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  await ensureDbSynced();
   const qa = getPublishedScholarAnswerBySlug(slug);
   if (!qa) notFound();
 

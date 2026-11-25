@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPublishedScholarAnswers } from "@/lib/db";
+import { ensureDbSynced, getPublishedScholarAnswers } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "Archive of reviewed questions and scholarly responses published by D2J Media Hub.",
 };
 
-export default function PublishedAnswersListPage() {
+export default async function PublishedAnswersListPage() {
+  await ensureDbSynced();
   const answers = getPublishedScholarAnswers();
 
   return (

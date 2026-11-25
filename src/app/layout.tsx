@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SvgDefs } from "@/components/SvgSprite";
 import { HeaderClient, NewsletterForm, Footer } from "@/components/HeaderFooter";
-import { getSiteSettings } from "@/lib/db";
+import { ensureDbSynced, getSiteSettings } from "@/lib/db";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.dpathtojannah.com").replace(
   /\/+$/,
@@ -51,11 +51,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await ensureDbSynced();
   const settings = getSiteSettings();
 
   return (

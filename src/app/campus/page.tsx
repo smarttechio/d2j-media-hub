@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { getPublishedArticles, getPublishedOpportunities } from "@/lib/db";
+import { ensureDbSynced, getPublishedArticles, getPublishedOpportunities } from "@/lib/db";
 import { CampusClient } from "./CampusClient";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "The voice of Muslim students in Nigerian universities, polytechnics and colleges: campus news, achievements, opportunities and student voices.",
 };
 
-export default function CampusPage() {
+export default async function CampusPage() {
+  await ensureDbSynced();
   const campusArticles = getPublishedArticles("campus");
   const allPublished = getPublishedArticles();
   const opportunities = getPublishedOpportunities();

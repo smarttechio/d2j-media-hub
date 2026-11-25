@@ -1,6 +1,59 @@
 {
   "articles": [
     {
+      "id": "art-1795602609830",
+      "slug": "three-markazud-dawah-members-excel-as-pcn-inducts-139-oau-pharmacy-graduates",
+      "title": "Three Markazud-Da’wah Members Excel As PCN Inducts 139 OAU Pharmacy Graduates",
+      "category": "campus",
+      "tags": [
+        "Campus News",
+        "Student Achievements",
+        "Campus Organisations",
+        "OAU Ile-Ife",
+        "Markazud-Da’wah",
+        "Pharmacy Council of Nigeria"
+      ],
+      "summary": "Three members of Markazud-Da’wah Wa Thaqafatil-Islamiyyah have distinguished themselves academically as the Pharmacy Council of Nigeria (PCN) inducted 139 pharmacy graduates of Obafemi Awolowo University (OAU), Ile-Ife, Osun State, into the pharmacy profession.",
+      "body": [
+        "The induction ceremony, held on Tuesday at the university campus in Ile-Ife, marked a significant milestone in the academic and professional journeys of the graduates as they formally joined the pharmacy profession.",
+        "The three outstanding graduates are Tayo Sofiyyah, Eniola Jamiu and Abojututu Khadijah, who have all played active leadership roles in Markazud-Da’wah, an Islamic organisation known for its religious, educational and social activities.",
+        "Tayo Sofiyyah, a former Female Coordinator of the organisation, and Eniola Jamiu, a former Deputy Coordinator, both graduated with distinctions, demonstrating exceptional academic performance throughout their pharmacy studies.",
+        "Similarly, Abojututu Khadijah, who previously served as Chairman of the Sisters Awareness Programme (SAP), a committee under Markazud-Da’wah, successfully completed her pharmacy programme with a pass.",
+        "Their academic accomplishments have been described as a source of pride and encouragement to members of the organisation, particularly young Muslim students, as they demonstrate the importance of combining religious commitment, leadership responsibilities and academic excellence.",
+        "Their successful induction into the pharmacy profession marks the beginning of a new chapter in their careers, with expectations that they will contribute meaningfully to healthcare delivery and pharmaceutical practice in Nigeria."
+      ],
+      "contentBlocks": [
+        {
+          "id": "blk-1795601588108-1g36",
+          "type": "paragraph",
+          "text": "The induction ceremony, held on Tuesday at the university campus in Ile-Ife, marked a significant milestone in the academic and professional journeys of the graduates as they formally joined the pharmacy profession.\n\nThe three outstanding graduates are Tayo Sofiyyah, Eniola Jamiu and Abojututu Khadijah, who have all played active leadership roles in Markazud-Da’wah, an Islamic organisation known for its religious, educational and social activities."
+        },
+        {
+          "id": "blk-1795602424877-zd9o",
+          "type": "paragraph",
+          "text": "Tayo Sofiyyah, a former Female Coordinator of the organisation, and Eniola Jamiu, a former Deputy Coordinator, both graduated with distinctions, demonstrating exceptional academic performance throughout their pharmacy studies.\n\nSimilarly, Abojututu Khadijah, who previously served as Chairman of the Sisters Awareness Programme (SAP), a committee under Markazud-Da’wah, successfully completed her pharmacy programme with a pass."
+        },
+        {
+          "id": "blk-1795602536268-xihq",
+          "type": "paragraph",
+          "text": "Their academic accomplishments have been described as a source of pride and encouragement to members of the organisation, particularly young Muslim students, as they demonstrate the importance of combining religious commitment, leadership responsibilities and academic excellence.\n\nTheir successful induction into the pharmacy profession marks the beginning of a new chapter in their careers, with expectations that they will contribute meaningfully to healthcare delivery and pharmaceutical practice in Nigeria."
+        }
+      ],
+      "featuredImage": "/uploads/markazud-dawah-oau-pharmacy-graduates.jpg",
+      "imageCaption": "Three Markazud-Da’wah Wa Thaqafatil-Islamiyyah members — Tayo Sofiyyah, Eniola Jamiu, and Abojututu Khadijah — inducted into the pharmacy profession at Obafemi Awolowo University (OAU), Ile-Ife.",
+      "authorId": "usr-sodiq",
+      "authorName": "Sodiq Lawal",
+      "publishedAt": "2026-11-25",
+      "updatedAt": "2026-11-25",
+      "artTheme": "campus",
+      "verification": "V",
+      "sourceName": "Markazud-Da’wah Wa Thaqafatil-Islamiyyah / OAU Campus Desk",
+      "status": "Published",
+      "featured": true,
+      "breaking": true,
+      "views": 245
+    },
+    {
       "id": "art-from-fear-to-eloquence-lukman-raimi",
       "slug": "from-fear-to-eloquence-eight-practical-strategies-for-overcoming-public-speaking-anxiety-and-building-confidence",
       "title": "From Fear to Eloquence: Eight Practical Strategies for Overcoming Public Speaking Anxiety and Building Confidence",

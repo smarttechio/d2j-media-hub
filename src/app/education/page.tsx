@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPublishedArticles, getPublishedOpportunities } from "@/lib/db";
+import { ensureDbSynced, getPublishedArticles, getPublishedOpportunities } from "@/lib/db";
 import { ArticleCard, OpportunityCard } from "@/components/ArticleCards";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
     "Study strategies, digital skills, career guidance and verified scholarship and internship listings for students and graduates.",
 };
 
-export default function EducationCareersPage() {
+export default async function EducationCareersPage() {
+  await ensureDbSynced();
   const eduArticles = getPublishedArticles("education");
   const opportunities = getPublishedOpportunities();
 

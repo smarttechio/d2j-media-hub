@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublishedOpportunityBySlug } from "@/lib/db";
+import { ensureDbSynced, getPublishedOpportunityBySlug } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  await ensureDbSynced();
   const opp = getPublishedOpportunityBySlug(slug);
   if (!opp) return { title: "Opportunity Not Found" };
   const canonicalPath = `/opportunities/${opp.slug}`;
@@ -43,6 +44,7 @@ export default async function OpportunityDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  await ensureDbSynced();
   const opp = getPublishedOpportunityBySlug(slug);
   if (!opp) notFound();
 

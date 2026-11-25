@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Article, Opportunity } from "@/lib/db";
 import {
@@ -24,17 +24,50 @@ const CAMPUS_TOPICS = [
 ];
 
 export function CampusClient({
-  campusArticles,
-  opportunities,
-  opinionArticles,
+  campusArticles: initialCampusArticles,
+  opportunities: initialOpportunities,
+  opinionArticles: initialOpinionArticles,
 }: {
   campusArticles: Article[];
   opportunities: Opportunity[];
   opinionArticles: Article[];
 }) {
+  const [campusArticles, setCampusArticles] = useState<Article[]>(initialCampusArticles);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities);
+  const [opinionArticles, setOpinionArticles] = useState<Article[]>(initialOpinionArticles);
   const [selectedTopic, setSelectedTopic] = useState("All");
   const [visibleCount, setVisibleCount] = useState(6);
   const [showUnverifiedPreview, setShowUnverifiedPreview] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin?public=1&t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.articles)) {
+          const allPub = (data.articles as Article[]).filter(
+            (a) => a.status === "Published" && a.verification !== "D"
+          );
+          const camp = allPub.filter((a) => a.category === "campus");
+          if (camp.length > 0) setCampusArticles(camp);
+          const opn = allPub.filter(
+            (a) => a.category === "opinion" || (a.tags || []).includes("Student Voices")
+          );
+          if (opn.length > 0) setOpinionArticles(opn);
+        }
+        if (!cancelled && Array.isArray(data.opportunities) && data.opportunities.length > 0) {
+          setOpportunities(data.opportunities);
+        }
+      } catch {
+        // Keep initial server props
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const leadArticle = campusArticles[0];
   const sideArticles = campusArticles.slice(1, 4);

@@ -99,11 +99,8 @@ export default async function ArticleDetailPage({
   const { category, slug } = await params;
   await ensureDbSynced();
   const article = getPublishedArticleBySlug(slug);
-  if (!article) {
-    notFound();
-  }
 
-  const effectiveCatSlug = article.category || category;
+  const effectiveCatSlug = article?.category || category;
   const cat = getCategoryBySlug(effectiveCatSlug);
   const catName = cat?.name || effectiveCatSlug;
   const catUrl =
@@ -114,59 +111,65 @@ export default async function ArticleDetailPage({
       : `/news/${effectiveCatSlug}`;
 
   const db = readDb();
-  const authorObj = db.authors.find((a) => a.id === article.authorId);
-  const approvedComments = getApprovedCommentsForArticle(article.id, article.slug).map(
-    ({ authorEmail: _em, ...c }) => c
-  );
+  const authorObj = article ? db.authors.find((a) => a.id === article.authorId) : undefined;
+  const approvedComments = article
+    ? getApprovedCommentsForArticle(article.id, article.slug).map(
+        ({ authorEmail: _em, ...c }) => c
+      )
+    : [];
 
   const sameCat = getPublishedArticles(effectiveCatSlug).filter(
-    (a) => a.slug !== article.slug
+    (a) => a.slug !== (article?.slug || slug)
   );
   const otherArts = getPublishedArticles().filter(
-    (a) => a.category !== effectiveCatSlug && a.slug !== article.slug
+    (a) => a.category !== effectiveCatSlug && a.slug !== (article?.slug || slug)
   );
   const related = [...sameCat, ...otherArts].slice(0, 3);
 
-  const canonicalUrl = `${SITE_BASE_URL}/news/${article.category}/${article.slug}`;
-  const ogImageUrl = resolveAbsoluteOgImageUrl(article);
+  const canonicalUrl = `${SITE_BASE_URL}/news/${effectiveCatSlug}/${article?.slug || slug}`;
+  const ogImageUrl = article ? resolveAbsoluteOgImageUrl(article) : `${SITE_BASE_URL}/logo.webp`;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": canonicalUrl,
-    },
-    url: canonicalUrl,
-    headline: article.title,
-    description: article.summary,
-    image: [ogImageUrl],
-    datePublished: article.publishedAt,
-    dateModified: article.updatedAt || article.publishedAt,
-    author: {
-      "@type": "Person",
-      name: article.authorName,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "D-Path to Jannah Media Hub",
-      logo: {
-        "@type": "ImageObject",
-        url: `${SITE_BASE_URL}/logo.webp`,
-      },
-    },
-  };
+  const jsonLd = article
+    ? {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": canonicalUrl,
+        },
+        url: canonicalUrl,
+        headline: article.title,
+        description: article.summary,
+        image: [ogImageUrl],
+        datePublished: article.publishedAt,
+        dateModified: article.updatedAt || article.publishedAt,
+        author: {
+          "@type": "Person",
+          name: article.authorName,
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "D-Path to Jannah Media Hub",
+          logo: {
+            "@type": "ImageObject",
+            url: `${SITE_BASE_URL}/logo.webp`,
+          },
+        },
+      }
+    : null;
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
       <LiveArticleViewClient
-        slug={article.slug}
+        slug={article?.slug || slug}
         categorySlug={effectiveCatSlug}
-        initialArticle={article}
+        initialArticle={article || null}
         catName={catName}
         catUrl={catUrl}
         authorObj={authorObj}

@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { getPublishedArticles, getCategoryBySlug } from "@/lib/db";
+import { ensureDbSynced, getPublishedArticles, getCategoryBySlug } from "@/lib/db";
 import { CategoryListingClient } from "@/components/CategoryListingClient";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "Reporting on Nigerian Muslim communities, education, youth and international Muslim affairs.",
 };
 
-export default function NewsLandingPage() {
+export default async function NewsLandingPage() {
+  await ensureDbSynced();
   const cat = getCategoryBySlug("news");
   // Show news articles first, plus general public articles
   const newsArticles = getPublishedArticles("news");

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Article, ScholarQuestion } from "@/lib/db";
 import { ArticleCard, SmallArticleCard } from "@/components/ArticleCards";
@@ -17,13 +17,36 @@ const ISLAM_TOPICS = [
 ];
 
 export function IslamClient({
-  articles,
+  articles: initialArticles,
   publishedAnswers,
 }: {
   articles: Article[];
   publishedAnswers: ScholarQuestion[];
 }) {
+  const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [selectedTopic, setSelectedTopic] = useState("All");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin?public=1&t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.articles)) {
+          const isl = (data.articles as Article[]).filter(
+            (a) => a.category === "islam" && a.status === "Published" && a.verification !== "D"
+          );
+          if (isl.length > 0) setArticles(isl);
+        }
+      } catch {
+        // Keep initial server props
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const leadArticle = articles[0];
   const sideArticles = articles.slice(1, 4);
